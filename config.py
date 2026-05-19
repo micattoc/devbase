@@ -49,8 +49,8 @@ def load_settings(require_secrets: bool = True) -> Settings:
 
     return Settings(
         hf_token=hf_token,
-        hf_llm_model=os.getenv("HF_LLM_MODEL", "openai/gpt-oss-120b:fastest"),
-        hf_embedding_model=os.getenv("HF_EMBEDDING_MODEL", "BAAI/bge-m3"),
+        hf_llm_model=os.getenv("HF_LLM_MODEL", "meta-llama/Llama-3.1-8B-Instruct"),
+        hf_embedding_model=os.getenv("HF_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"),
         hf_provider=os.getenv("HF_PROVIDER", "auto"),
         github_token=os.getenv("GITHUB_TOKEN", ""),
         github_repo_list=repos,

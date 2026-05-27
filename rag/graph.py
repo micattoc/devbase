@@ -116,3 +116,21 @@ async def insert_text(text: str) -> None:
     finally:
         await rag.finalize_storages()
 
+
+# Query LightRAG for historical context related to a planned development change
+async def query_change_risk(change_description: str, mode: str = "hybrid") -> str:
+    rag = await create_rag()
+
+    try:
+        question = (
+            "Generate a concise change-risk report for this planned change. "
+            "Focus on historical bugs, regressions, compatibility concerns, "
+            "and review checklist items. Cite source URLs when available.\n\n"
+            f"Planned change: {change_description}"
+        )
+
+        return await rag.aquery(question, param=QueryParam(mode=mode))
+    
+    finally:
+        await rag.finalize_storages()
+

@@ -44,7 +44,7 @@ def _optional(name: str, default: str | None = None) -> str | None:
 def load_settings(require_secrets: bool = True) -> Settings:
     hf_token = _required("HF_TOKEN") if require_secrets else os.getenv("HF_TOKEN", "")
 
-    repo_list = os.getenv("GITHUB_REPO_LIST", "vercel/next.js")
+    repo_list = os.getenv("GITHUB_REPO_LIST", "mockoon/mockoon")
     repos = [repo.strip() for repo in repo_list.split(",") if repo.strip()]
 
     return Settings(
@@ -55,7 +55,7 @@ def load_settings(require_secrets: bool = True) -> Settings:
         github_token=os.getenv("GITHUB_TOKEN", ""),
         github_repo_list=repos,
         braintrust_api_key=_optional("BRAINTRUST_API_KEY"),
-        lightrag_working_dir=Path(os.getenv("LIGHTRAG_WORKING_DIR", ".storage")),
+        lightrag_working_dir=Path(os.getenv("LIGHTRAG_WORKING_DIR", "./storage/live")),
         audit_log_path=Path(os.getenv("AUDIT_LOG_PATH", "./audit.jsonl")),
         ingestion_manifest_path=Path(os.getenv("INGESTION_MANIFEST_PATH", "./ingestion_manifest.json")),
     )

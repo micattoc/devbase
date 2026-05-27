@@ -3,8 +3,6 @@
 This module owns the RAG instance, HuggingFace model adapters, and query helpers.
 """
 
-from __future__ import annotations
-
 import os
 from typing import Any
 
@@ -27,13 +25,13 @@ def _client(settings: Settings) -> InferenceClient:
     )
 
 
-# Generate text through HuggingFace's chat completion API
 async def llm_model_func(
     prompt: str,
     system_prompt: str | None = None,
     history_messages: list[dict[str, str]] | None = None,
     **kwargs: Any,
 ) -> str:
+    """Generate text through HuggingFace's chat completion API."""
 
     settings = load_settings(require_secrets=True)
     client = _client(settings)
@@ -65,8 +63,8 @@ async def llm_model_func(
     return content
 
 
-# Embed text batches via HuggingFace feature extraction
 async def embedding_func(texts: list[str]) -> np.ndarray:
+    """Embed text batches via HuggingFace feature extraction."""
 
     settings = load_settings(require_secrets=True)
     client = _client(settings)
@@ -84,8 +82,8 @@ async def embedding_func(texts: list[str]) -> np.ndarray:
     return array
 
 
-# Initialise LightRAG instance
 async def create_rag(settings: Settings | None = None) -> LightRAG:
+    """Initialise LightRAG instance."""
 
     settings = settings or load_settings(require_secrets=True)
     os.makedirs(settings.lightrag_working_dir, exist_ok=True)
@@ -106,9 +104,8 @@ async def create_rag(settings: Settings | None = None) -> LightRAG:
     return rag
 
 
-# Insert document to LightRAG store
 async def insert_text(text: str) -> None:
-
+    """Insert document to LightRAG store."""
     rag = await create_rag()
 
     try:
@@ -117,8 +114,9 @@ async def insert_text(text: str) -> None:
         await rag.finalize_storages()
 
 
-# Query LightRAG for historical context related to a planned development change
 async def query_change_risk(change_description: str, mode: str = "hybrid") -> str:
+    """Query LightRAG for historical context related to a planned development change."""
+    
     rag = await create_rag()
 
     try:

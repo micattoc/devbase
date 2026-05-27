@@ -96,33 +96,50 @@ def fetch_issue_comments(repo: str, issue_number: int, max_items: int = 20) -> l
 
 def fetch_repo_issues(repo: str, max_items: int = 25) -> list[dict[str, Any]]:
     url = f"{GITHUB_API_BASE}/repos/{repo}/issues"
-    items = _paginate(url, max_items=max_items, params={"state": "all"})
 
     issues: list[dict[str, Any]] = []
+    page = 1
 
-    for item in items:
+    # Return issues till max number of issues (not records), as PRs are also issues in GitHub’s data model
+    while len(issues) < max_items:
+        items = _get(
+            url,
+            {
+                "state": "all",
+                "per_page": 100,
+                "page": page,
+            },
+        )
 
-        # GitHub's issues endpoint returns PRs too, so skipping those here
-        if "pull_request" in item:
-            continue
+        if not items:
+            break
 
-        issue = {
-            "type": "issue",
-            "repo": repo,
-            "id": item["number"],
-            "title": item.get("title") or "",
-            "body": item.get("body") or "",
-            "url": item["html_url"],
-            "created_at": item["created_at"],
-            "updated_at": item["updated_at"],
-            "labels": _labels(item),
-        }
+        for item in items:
+            if "pull_request" in item:
+                continue
 
-        issues.append(issue)
+            issue = {
+                "type": "issue",
+                "repo": repo,
+                "id": item["number"],
+                "title": item.get("title") or "",
+                "body": item.get("body") or "",
+                "url": item["html_url"],
+                "created_at": item["created_at"],
+                "updated_at": item["updated_at"],
+                "labels": _labels(item),
+            }
 
-        # Fetch comments of issues in repo
-        if item.get("comments", 0) > 0:
-            issues.extend(fetch_issue_comments(repo, item["number"], max_items=10))
+            issues.append(issue)
+
+            # Fetch comments of issues in repo
+            if item.get("comments", 0) > 0:
+                issues.extend(fetch_issue_comments(repo, item["number"], max_items=10))
+
+            if len(issues) >= max_items:
+                break
+
+        page += 1
 
     return issues
 

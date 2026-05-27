@@ -92,3 +92,102 @@ def fetch_issue_comments(repo: str, issue_number: int, max_items: int = 20) -> l
         }
         for comment in comments
     ]
+
+
+def fetch_repo_issues(repo: str, max_items: int = 25) -> list[dict[str, Any]]:
+    url = f"{GITHUB_API_BASE}/repos/{repo}/issues"
+    items = _paginate(url, max_items=max_items, params={"state": "all"})
+
+    issues: list[dict[str, Any]] = []
+
+    for item in items:
+
+        # GitHub's issues endpoint returns PRs too, so skipping those here
+        if "pull_request" in item:
+            continue
+
+        issue = {
+            "type": "issue",
+            "repo": repo,
+            "id": item["number"],
+            "title": item.get("title") or "",
+            "body": item.get("body") or "",
+            "url": item["html_url"],
+            "created_at": item["created_at"],
+            "updated_at": item["updated_at"],
+            "labels": _labels(item),
+        }
+
+        issues.append(issue)
+
+        # Fetch comments of issues in repo
+        if item.get("comments", 0) > 0:
+            issues.extend(fetch_issue_comments(repo, item["number"], max_items=10))
+
+    return issues
+
+
+def fetch_pr_review_comments(repo: str, pull_number: int, max_items: int = 20) -> list[dict[str, Any]]:
+    """Get all comments from a given PR."""
+
+    url = f"{GITHUB_API_BASE}/repos/{repo}/pulls/{pull_number}/comments"
+    comments = _paginate(url, max_items=max_items)
+
+    return [
+        {
+            "type": "pr_review_comment",
+            "repo": repo,
+            "id": comment["id"],
+            "title": f"Review comment on PR #{pull_number}",
+            "body": comment.get("body") or "",
+            "url": comment["html_url"],
+            "created_at": comment["created_at"],
+            "updated_at": comment["updated_at"],
+            "labels": [],
+        }
+        for comment in comments
+    ]
+
+
+def fetch_repo_prs(repo: str, max_items: int = 25) -> list[dict[str, Any]]:
+    url = f"{GITHUB_API_BASE}/repos/{repo}/pulls"
+    items = _paginate(url, max_items=max_items, params={"state": "all"})
+
+    prs: list[dict[str, Any]] = []
+
+    for item in items:
+        pr = {
+            "type": "pull_request",
+            "repo": repo,
+            "id": item["number"],
+            "title": item.get("title") or "",
+            "body": item.get("body") or "",
+            "url": item["html_url"],
+            "created_at": item["created_at"],
+            "updated_at": item["updated_at"],
+            "labels": [],
+        }
+
+        prs.append(pr)
+        
+        # Add comments of PR while keeping store as a flat list
+        prs.extend(fetch_pr_review_comments(repo, item["number"], max_items=10))
+
+    return prs
+
+
+def fetch_repo_readme(repo: str) -> dict[str, Any]:
+    url = f"{GITHUB_API_BASE}/repos/{repo}/readme"
+    readme = _get(url)
+
+    return {
+        "type": "readme",
+        "repo": repo,
+        "id": "README",
+        "title": "README",
+        "body": requests.get(readme["download_url"], timeout=30).text,
+        "url": readme["html_url"],
+        "created_at": None,
+        "updated_at": None,
+        "labels": [],
+    }

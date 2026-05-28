@@ -1,0 +1,219 @@
+{
+  "name": "Devbase Eval Gate",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kb-updated",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "2af7b478-dbea-41e9-a0e7-f30398621cff",
+      "name": "Webhook",
+      "webhookId": "d5c5bbfc-a039-44e6-a342-c2025ad02cc1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a429e32c-bf8a-47ae-bfe5-82fde28afa96",
+              "leftValue": "={{ $json.passed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        416,
+        0
+      ],
+      "id": "49ba6442-962a-4eb7-bbb2-857cd6772d7d",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8000/promote-staging",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        624,
+        -96
+      ],
+      "id": "1d6638f1-7eba-41a2-a89a-0d6a2b7b08d6",
+      "name": "Promote Staging to Live"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8000/run-eval",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "7f79b3a7-9121-4ce4-b27d-ab8cc533fc93",
+      "name": "Check Eval Pass"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e8a53360-7afc-4fe7-9b2b-611310ab1b72",
+              "name": "status",
+              "value": "failed",
+              "type": "string"
+            },
+            {
+              "id": "92a3447d-b8b1-41ec-98c8-bd9a312b5be7",
+              "name": "message",
+              "value": "Eval gate failed. Staging was not promoted.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        624,
+        96
+      ],
+      "id": "beabc209-7755-4427-b30c-f5392457459d",
+      "name": "Gate Failed"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7e0f02ce-449c-43c6-be53-2c7bfc80737f",
+              "name": "status",
+              "value": "passed",
+              "type": "string"
+            },
+            {
+              "id": "022cb96a-a214-402d-8413-964736d4bba1",
+              "name": "message",
+              "value": "Eval gate passed. Staging promoted to live.",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        832,
+        -96
+      ],
+      "id": "723cd861-9938-488b-8645-16b14c126902",
+      "name": "Gate Passed"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check Eval Pass",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Promote Staging to Live",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gate Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Eval Pass": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Promote Staging to Live": {
+      "main": [
+        [
+          {
+            "node": "Gate Passed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "f59ead2a-bc5f-450a-b928-51ac4c698935",
+  "meta": {
+    "instanceId": "7c78c541639d438080ad241927e02c2ecdb9f79debfd1c31baa81a59ce133c17"
+  },
+  "id": "jVtPivv6CJzsyGvl",
+  "tags": []
+}

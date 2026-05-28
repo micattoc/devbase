@@ -17,14 +17,14 @@ def log_eval_summary(summary: dict[str, Any]) -> None:
     if not settings.braintrust_api_key:
         return
 
-    braintrust.init(
-        project=PROJECT_NAME,
-        experiment="change-risk-local-eval",
-        api_key=settings.braintrust_api_key,
-    )
+    experiment = braintrust.init(
+                                project=PROJECT_NAME,
+                                experiment="change-risk-local-eval",
+                                api_key=settings.braintrust_api_key,
+                            )
 
     for result in summary["results"]:
-        braintrust.log(
+        experiment.log(
             input={
                 "change_description": result["change_description"],
             },
@@ -47,7 +47,7 @@ def log_eval_summary(summary: dict[str, Any]) -> None:
             },
         )
 
-    braintrust.log(
+    experiment.log(
         input={"eval_summary": True},
 
         output={

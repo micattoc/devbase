@@ -13,6 +13,7 @@ from lightrag.kg.shared_storage import initialize_pipeline_status
 from lightrag.utils import EmbeddingFunc
 
 from config import Settings, load_settings
+from workflow.risk_prompt import build_change_risk_prompt
 
 EMBEDDING_DIM = 384
 MAX_TOKEN_SIZE = 8192
@@ -120,12 +121,7 @@ async def query_change_risk(change_description: str, mode: str = "hybrid") -> st
     rag = await create_rag()
 
     try:
-        question = (
-            "Generate a concise change-risk report for this planned change. "
-            "Focus on historical bugs, regressions, compatibility concerns, "
-            "and review checklist items. Cite source URLs when available.\n\n"
-            f"Planned change: {change_description}"
-        )
+        question = build_change_risk_prompt(change_description)
 
         return await rag.aquery(question, param=QueryParam(mode=mode))
     

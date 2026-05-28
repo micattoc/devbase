@@ -1,5 +1,4 @@
-"""Convert GitHub records into LightRAG documents.
-"""
+"""Convert GitHub records into LightRAG documents."""
 
 import asyncio
 import json

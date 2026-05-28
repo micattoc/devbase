@@ -78,7 +78,7 @@ async def run_eval(path: Path = GOLDEN_SET_PATH) -> dict[str, Any]:
 
     citation_rate = hits / len(cases) if cases else 0.0
 
-    return {
+    summary = {
         "total": len(cases),
         "citation_hits": hits,
         "citation_rate": citation_rate,
@@ -86,7 +86,13 @@ async def run_eval(path: Path = GOLDEN_SET_PATH) -> dict[str, Any]:
         "results": results,
     }
 
+    # Log eval run for Braintrust analysis
+    log_eval_summary(summary)
 
+    return summary
+
+
+# For testing eval run in isolation
 async def main() -> None:
     summary = await run_eval()
 

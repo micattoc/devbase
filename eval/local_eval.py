@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from workflow.graph import risk_workflow
+from eval.braintrust import log_eval_summary
 
 
 GOLDEN_SET_PATH = Path("data/golden_test_set.jsonl")
@@ -88,6 +89,9 @@ async def run_eval(path: Path = GOLDEN_SET_PATH) -> dict[str, Any]:
 
 async def main() -> None:
     summary = await run_eval()
+
+    # Log eval run for Braintrust analysis
+    log_eval_summary(summary)
 
     print(json.dumps(summary, indent=2))
 

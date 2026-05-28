@@ -9,11 +9,15 @@ from datetime import datetime, timezone
 import hashlib
 import json
 import re
+import logging
 
 from presidio_analyzer import AnalyzerEngine, Pattern, PatternRecognizer
 from presidio_anonymizer import AnonymizerEngine
 
 from config import load_settings
+
+logging.getLogger("presidio-analyzer").setLevel(logging.ERROR)
+
 
 # Common patterns for prompt injection and secret exfiltration
 BLOCK_PATTERNS = {

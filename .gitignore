@@ -3,13 +3,11 @@
 __pycache__/
 *.pyc
 .pytest_cache/
-.mypy_cache/
-.ruff_cache/
 
-storage/
-audit.jsonl
-ingestion_manifest.json
 
-.env.local
 plan.md
 scripts/
+n8n_data/
+storage/
+ingestion_manifest.json
+audit.jsonl

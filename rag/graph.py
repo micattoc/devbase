@@ -92,10 +92,10 @@ async def create_rag(settings: Settings | None = None) -> LightRAG:
     """Initialise LightRAG instance."""
 
     settings = settings or load_settings(require_secrets=True)
-    os.makedirs(settings.lightrag_working_dir, exist_ok=True)
+    os.makedirs(settings.lightrag_staging_dir, exist_ok=True)
 
     rag = LightRAG(
-        working_dir=str(settings.lightrag_working_dir),
+        working_dir=str(settings.lightrag_staging_dir),
         llm_model_func=llm_model_func,
         embedding_func=EmbeddingFunc(
             embedding_dim=EMBEDDING_DIM,

@@ -67,6 +67,7 @@ async def run_eval(path: Path = GOLDEN_SET_PATH) -> dict[str, Any]:
         results.append(
             {
                 "change_description": case["change_description"],
+                "report": result.get("report"),
                 "expected_source_urls": case["expected_source_urls"],
                 "actual_sources": actual_sources,
                 "citation_hit": hit,

@@ -6,6 +6,8 @@ This module owns the RAG instance, HuggingFace model adapters, and query helpers
 import os
 from typing import Any
 
+import logging
+
 import numpy as np
 from huggingface_hub import InferenceClient
 from lightrag import LightRAG, QueryParam
@@ -14,6 +16,9 @@ from lightrag.utils import EmbeddingFunc
 
 from config import Settings, load_settings
 from workflow.risk_prompt import build_change_risk_prompt
+
+logging.getLogger("lightrag").setLevel(logging.ERROR)
+logging.getLogger("nano-vectordb").setLevel(logging.ERROR)
 
 EMBEDDING_DIM = 384
 MAX_TOKEN_SIZE = 8192
@@ -115,13 +120,13 @@ async def insert_text(text: str) -> None:
         await rag.finalize_storages()
 
 
-async def query_change_risk(change_description: str, mode: str = "hybrid") -> str:
+async def query_change_risk(repo: str, change_description: str, mode: str = "hybrid") -> str:
     """Query LightRAG for historical context related to a planned development change."""
     
     rag = await create_rag()
 
     try:
-        question = build_change_risk_prompt(change_description)
+        question = build_change_risk_prompt(repo, change_description)
 
         return await rag.aquery(question, param=QueryParam(mode=mode))
     

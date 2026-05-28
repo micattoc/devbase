@@ -39,7 +39,10 @@ async def security_check(state: RiskWorkflowState) -> RiskWorkflowState:
 async def retrieval_and_generation(state: RiskWorkflowState) -> RiskWorkflowState:
     """Retrieve historical context and generate the report."""
 
-    report = await query_change_risk(state["sanitized_user_description"])
+    report = await query_change_risk(
+                                        state["repo"],
+                                        state["sanitized_user_description"],
+                                    )
 
     return {
         **state,

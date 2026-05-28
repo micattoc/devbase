@@ -11,3 +11,5 @@ audit.jsonl
 ingestion_manifest.json
 
 .env.local
+plan.md
+scripts/

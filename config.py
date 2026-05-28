@@ -25,7 +25,10 @@ class Settings:
 
     braintrust_api_key: str | None
 
-    lightrag_working_dir: Path
+    lightrag_live_dir: Path
+    lightrag_staging_dir: Path
+    lightrag_backup_dir: Path
+
     audit_log_path: Path
     ingestion_manifest_path: Path
 
@@ -55,7 +58,9 @@ def load_settings(require_secrets: bool = True) -> Settings:
         github_token=os.getenv("GITHUB_TOKEN", ""),
         github_repo_list=repos,
         braintrust_api_key=_optional("BRAINTRUST_API_KEY"),
-        lightrag_working_dir=Path(os.getenv("LIGHTRAG_WORKING_DIR", "./storage/live")),
+        lightrag_live_dir=Path(os.getenv("LIGHTRAG_WORKING_DIR", "./storage/live")),
+        lightrag_staging_dir=Path(os.getenv("LIGHTRAG_STAGING_DIR", "./storage/staging")),
+        lightrag_backup_dir=Path(os.getenv("LIGHTRAG_BACKUP_DIR", "./storage/live_backup")),
         audit_log_path=Path(os.getenv("AUDIT_LOG_PATH", "./audit.jsonl")),
         ingestion_manifest_path=Path(os.getenv("INGESTION_MANIFEST_PATH", "./ingestion_manifest.json")),
     )

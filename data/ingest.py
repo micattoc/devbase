@@ -1,9 +1,11 @@
 """Convert GitHub records into LightRAG documents.
 """
 
+import asyncio
 import json
 from pathlib import Path
 from typing import Any
+from rag.graph import insert_text
 
 
 def record_key(record: dict[str, Any]) -> str:
@@ -44,3 +46,34 @@ def save_manifest(path: Path, keys: set[str]) -> None:
     """Persist inserted record IDs in sorted order to disk."""
 
     path.write_text(json.dumps(sorted(keys), indent=2), encoding="utf-8")
+
+
+async def ingest_records(records: list[dict[str, Any]], manifest_path: Path) -> dict[str, int]:
+    """Insert new GitHub records into RAG, skipping records already inserted."""
+
+    inserted_keys = load_manifest(manifest_path)
+
+    fetched = len(records)
+    inserted = 0
+    skipped = 0
+
+    for record in records:
+        key = record_key(record)
+
+        if key in inserted_keys:
+            skipped += 1
+            continue
+
+        text = format_record_for_rag(record)
+        await insert_text(text)
+
+        inserted_keys.add(key)
+        inserted += 1
+
+    save_manifest(manifest_path, inserted_keys)
+
+    return {
+        "fetched": fetched,
+        "inserted": inserted,
+        "skipped": skipped,
+    }

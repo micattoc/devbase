@@ -2,9 +2,12 @@
 
 from typing import Any
 
+import httpx
+import requests
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+from config import load_settings
 from data.promote_storage import promote_staging_to_live
 from eval.local_eval import run_eval
 from workflows.graph import risk_workflow
@@ -31,6 +34,12 @@ class PromotionResponse(BaseModel):
     live_path: str
     staging_path: str
     backup_path: str
+    message: str
+
+class QualityGateTriggerResponse(BaseModel):
+    triggered: bool
+    webhook_url: str
+    status: str
     message: str
 
 
@@ -85,3 +94,46 @@ async def promote_staging() -> PromotionResponse:
         backup_path=result.backup_path,
         message=result.message,
     )
+
+
+# Trigger the n8n quality gate workflow
+@app.post("/trigger-quality-gate", response_model=QualityGateTriggerResponse)
+async def trigger_quality_gate() -> QualityGateTriggerResponse:
+    settings = load_settings(require_secrets=False)
+
+    try:
+        async with httpx.AsyncClient(timeout=300) as client:
+            response = await client.post(
+                settings.n8n_quality_gate_webhook_url,
+                json={"source": "devbase-api"},
+            )
+        
+        if response.status_code >= 400:
+            raise HTTPException(
+                status_code=502,
+                detail=f"n8n webhook returned HTTP {response.status_code}: {response.text}",
+            )
+        
+        payload = response.json()
+
+        return QualityGateTriggerResponse(
+            triggered=True,
+            webhook_url=settings.n8n_quality_gate_webhook_url,
+            status=payload.get("status"),
+            message=payload.get("message"),
+        )
+    
+    except HTTPException:
+        raise
+
+    except requests.RequestException as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Failed to trigger n8n quality gate: {str(exc)}",
+        ) from exc
+    
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unexpected quality gate trigger failure: {type(exc).__name__}: {exc}",
+        ) from exc

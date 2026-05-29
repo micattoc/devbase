@@ -5,6 +5,7 @@
       "parameters": {
         "httpMethod": "POST",
         "path": "kb-updated",
+        "responseMode": "responseNode",
         "options": {}
       },
       "type": "n8n-nodes-base.webhook",
@@ -148,7 +149,38 @@
         -96
       ],
       "id": "723cd861-9938-488b-8645-16b14c126902",
-      "name": "Gate Passed"
+      "name": "Gate Passed",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"status\": {{ JSON.stringify($json.status) }},\n  \"message\": {{ JSON.stringify($json.message) }}\n} ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1040,
+        -96
+      ],
+      "id": "64038f03-cc62-4297-9504-b92eabd5caac",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"status\": {{ JSON.stringify($json.status) }},\n  \"message\": {{ JSON.stringify($json.message) }}\n} ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        832,
+        96
+      ],
+      "id": "5c53ad3b-a81e-4658-a089-27b1805066d3",
+      "name": "Respond to Webhook1"
     }
   ],
   "pinData": {},
@@ -198,6 +230,28 @@
         [
           {
             "node": "Gate Passed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gate Passed": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gate Failed": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
             "type": "main",
             "index": 0
           }

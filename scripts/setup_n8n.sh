@@ -5,7 +5,6 @@ CONTAINER_NAME="devbase_n8n"
 WORKFLOW_NAME="Devbase Eval Gate"
 WORKFLOW_FILE="/workflows/n8n_quality_gate.json"
 IMPORT_FILE="/tmp/devbase_n8n_quality_gate_import.json"
-EXPORT_FILE="/tmp/devbase_n8n_workflows.json"
 
 echo "Starting n8n..."
 docker compose up -d n8n
@@ -17,7 +16,6 @@ echo "Preparing workflow import file..."
 WORKFLOW_ID="$(
   docker exec -u node "${CONTAINER_NAME}" node -e "
     const fs = require('fs');
-    const crypto = require('crypto');
 
     const workflowName = process.argv[1];
     const inputPath = process.argv[2];
@@ -25,13 +23,9 @@ WORKFLOW_ID="$(
 
     const workflow = JSON.parse(fs.readFileSync(inputPath, 'utf8'));
 
-    const hash = crypto
-      .createHash('sha1')
-      .update(workflowName)
-      .digest('hex')
-      .slice(0, 12);
+    const uniqueId = Date.now().toString(36);
 
-    workflow.id = 'devbase_' + hash;
+    workflow.id = 'devbase_' + uniqueId;
     workflow.name = workflowName;
     workflow.active = false;
 
@@ -50,29 +44,8 @@ fi
 
 echo "Workflow ID: ${WORKFLOW_ID}"
 
-echo "Checking whether workflow already exists..."
-docker exec -u node "${CONTAINER_NAME}" n8n export:workflow --all --output="${EXPORT_FILE}" >/dev/null
-
-WORKFLOW_EXISTS="$(
-  docker exec -u node "${CONTAINER_NAME}" node -e "
-    const fs = require('fs');
-
-    const workflowId = process.argv[1];
-    const exportPath = process.argv[2];
-
-    const raw = JSON.parse(fs.readFileSync(exportPath, 'utf8'));
-    const workflows = Array.isArray(raw) ? raw : raw.workflows || [];
-
-    console.log(workflows.some((workflow) => workflow.id === workflowId) ? 'yes' : 'no');
-  " "${WORKFLOW_ID}" "${EXPORT_FILE}"
-)"
-
-if [[ "${WORKFLOW_EXISTS}" == "yes" ]]; then
-  echo "Workflow already exists. Skipping import."
-else
-  echo "Importing workflow: ${WORKFLOW_NAME}"
-  docker exec -u node "${CONTAINER_NAME}" n8n import:workflow --input="${IMPORT_FILE}"
-fi
+echo "Importing workflow: ${WORKFLOW_NAME}"
+docker exec -u node "${CONTAINER_NAME}" n8n import:workflow --input="${IMPORT_FILE}"
 
 echo "Publishing workflow..."
 if ! docker exec -u node "${CONTAINER_NAME}" n8n publish:workflow --id="${WORKFLOW_ID}"; then

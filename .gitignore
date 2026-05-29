@@ -12,3 +12,7 @@ n8n_data/
 storage/
 ingestion_manifest.json
 audit.jsonl
+
+node_modules/
+dist/
+.vite/

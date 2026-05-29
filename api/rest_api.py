@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 from data.promote_storage import promote_staging_to_live
 from eval.local_eval import run_eval
-from workflow.graph import risk_workflow
+from workflows.graph import risk_workflow
 
 
 app = FastAPI(title="Devbase", version="0.1.0")

@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from workflow.graph import risk_workflow
+from workflows.graph import risk_workflow
 from eval.braintrust import log_eval_summary
 
 

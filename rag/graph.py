@@ -15,7 +15,7 @@ from lightrag.kg.shared_storage import initialize_pipeline_status
 from lightrag.utils import EmbeddingFunc
 
 from config import Settings, load_settings
-from workflow.risk_prompt import build_change_risk_prompt
+from workflows.risk_prompt import build_change_risk_prompt
 
 logging.getLogger("lightrag").setLevel(logging.ERROR)
 logging.getLogger("nano-vectordb").setLevel(logging.ERROR)

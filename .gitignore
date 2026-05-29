@@ -6,7 +6,8 @@ __pycache__/
 
 
 plan.md
-scripts/
+scripts/*smoke_test.py
+scripts/*set.py
 n8n_data/
 storage/
 ingestion_manifest.json

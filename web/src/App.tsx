@@ -1,4 +1,5 @@
 import {
+  Badge,
   Box,
   Button,
   Flex,
@@ -14,6 +15,7 @@ import {
 } from "@chakra-ui/react"
 import { useState } from "react"
 import { FiExternalLink } from "react-icons/fi"
+import { HiChatAlt2, HiLockClosed, HiOutlineCubeTransparent } from "react-icons/hi"
 
 const TITLE_WORD_LIMIT = 5
 
@@ -137,13 +139,25 @@ function Sources() {
     (source) => source.kind === "issue" && source.state === "closed",
   )
 
-  const renderStatusLabel = (label: string, count: number) => (
-    <Text fontSize="sm" color="fg.muted" fontWeight="medium">
-      {label}{" "}
-      <Text as="span" fontSize="xs" color="fg.subtle" fontWeight="normal">
+  const renderStatusBadge = (status: "Open" | "Closed", count: number) => (
+    <Badge
+      colorPalette={status === "Open" ? "green" : "gray"}
+      variant="subtle"
+      width="fit-content"
+      display="inline-flex"
+      alignItems="center"
+      gap="1"
+    >
+      {status === "Open" ? (
+        <HiChatAlt2 aria-hidden="true" />
+      ) : (
+        <HiLockClosed aria-hidden="true" />
+      )}
+      {status}{" "}
+      <Text as="span" fontSize="xs" color="gray.700" fontWeight="normal">
         ({count})
       </Text>
-    </Text>
+    </Badge>
   )
 
   const truncateTitle = (title: string) => {
@@ -187,7 +201,7 @@ function Sources() {
         </Heading>
         <Grid templateColumns="minmax(0, 1fr) auto minmax(0, 1fr)" gap="6">
           <Stack gap="3">
-            {renderStatusLabel("Open", openPullRequests.length)}
+            {renderStatusBadge("Open", openPullRequests.length)}
             <Stack as="ul" gap="3" listStyleType="none" m="0" p="0">
               {openPullRequests.map(renderSource)}
             </Stack>
@@ -196,7 +210,7 @@ function Sources() {
           <Separator orientation="vertical" />
 
           <Stack gap="3">
-            {renderStatusLabel("Closed", closedPullRequests.length)}
+            {renderStatusBadge("Closed", closedPullRequests.length)}
             <Stack as="ul" gap="3" listStyleType="none" m="0" p="0">
               {closedPullRequests.map(renderSource)}
             </Stack>
@@ -210,7 +224,7 @@ function Sources() {
         </Heading>
         <Grid templateColumns="minmax(0, 1fr) auto minmax(0, 1fr)" gap="6">
           <Stack gap="3">
-            {renderStatusLabel("Open", openIssues.length)}
+            {renderStatusBadge("Open", openIssues.length)}
             <Stack as="ul" gap="3" listStyleType="none" m="0" p="0">
               {openIssues.map(renderSource)}
             </Stack>
@@ -219,7 +233,7 @@ function Sources() {
           <Separator orientation="vertical" />
 
           <Stack gap="3">
-            {renderStatusLabel("Closed", closedIssues.length)}
+            {renderStatusBadge("Closed", closedIssues.length)}
             <Stack as="ul" gap="3" listStyleType="none" m="0" p="0">
               {closedIssues.map(renderSource)}
             </Stack>
@@ -241,26 +255,31 @@ export default function App() {
       <Box px="10" py="8" borderRightWidth="1px" bg="white">
         <Stack gap="6">
           <Box>
-            <Heading size="2xl">Devbase</Heading>
+            <Flex align="center" gap="2" mb="3">
+              <HiOutlineCubeTransparent aria-hidden="true" size={30} />
+              <Heading size="2xl">Devbase</Heading>
+            </Flex>
             <Stack gap="2" mt="1">
               <Text color="fg.muted">Ask before changing code.</Text>
               <Text color="fg.muted">
-                Devbase pulls in GitHub data to help you plan.
+                We pull in GitHub data to help you plan.
               </Text>
             </Stack>
           </Box>
 
+          <Separator />
+
           <Stack gap="3">
-            <Text fontSize="sm" fontWeight="medium">
+            <Heading size="md">
               Repository
-            </Text>
+            </Heading>
             <Input value="mockoon/mockoon" readOnly fontSize="md" />
           </Stack>
 
           <Stack gap="3">
-            <Text fontSize="sm" fontWeight="medium">
+            <Heading size="md">
               Planned change
-            </Text>
+            </Heading>
             <Textarea
               minH="180px"
               fontSize="md"

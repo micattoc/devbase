@@ -2,6 +2,9 @@ import {
   Badge,
   Box,
   Button,
+  CloseButton,
+  Code,
+  Drawer,
   Flex,
   Grid,
   Heading,
@@ -21,8 +24,11 @@ import { FiExternalLink } from "react-icons/fi"
 import {
   HiInformationCircle,
   HiLockClosed,
+  HiOutlineAdjustments,
   HiOutlineCubeTransparent,
+  HiOutlineScale,
   HiOutlineShare,
+  HiOutlineTerminal,
 } from "react-icons/hi"
 
 const TITLE_WORD_LIMIT = 5
@@ -288,6 +294,7 @@ function Sources() {
 
 export default function App() {
   const [previewState, setPreviewState] = useState<PreviewState>("idle")
+  const [isGoldenSetOpen, setIsGoldenSetOpen] = useState(false)
   const [repo, setRepo] = useState("mockoon/mockoon")
   const [plannedChange, setPlannedChange] = useState("")
   const hasRequiredInput = repo.trim().length > 0 && plannedChange.trim().length > 0
@@ -325,16 +332,14 @@ export default function App() {
               <Heading size="2xl">Devbase</Heading>
             </Flex>
             <Stack gap="2" mt="1">
-              <Text color="fg.muted">Ask before changing code.</Text>
-              <Text color="fg.muted">
-                We pull in GitHub data to help you plan.
-              </Text>
+              <Text color="fg.muted">Changing code? Describe the change and review potential risks. </Text>
+
             </Stack>
           </Box>
 
           <Separator />
 
-          <Stack gap="3">
+          <Stack gap="3" mb="3">
             <Flex align="center" gap="2">
               <Heading size="md">Repository</Heading>
               <Tooltip
@@ -366,7 +371,8 @@ export default function App() {
               onChange={(event) =>
                 handleInputChange(event.target.value, setPlannedChange)
               }
-              minH="180px"
+              minH="125px"
+              resize="none"
               fontSize="md"
               placeholder="I am changing request body parsing for mocked endpoints..."
             />
@@ -379,8 +385,80 @@ export default function App() {
               {previewState === "loading" ? "Generating report" : "Generate report"}
             </Button>
           </Stack>
+
+          <Separator />
+
+          <Stack gap="5" pt="2">
+            <Stack gap="2" mb="3">
+              <Flex align="center" gap="2">
+                <HiOutlineScale aria-hidden="true" size={20} />
+                <Heading size="md">Monitor Eval</Heading>
+                <Tooltip content="Track quality over time as prompts or models change.">
+                  <Box as="span" color="gray.400">
+                    <HiInformationCircle aria-label="Monitor eval help" size={18} />
+                  </Box>
+                </Tooltip>
+              </Flex>
+              <Flex align="center" gap="2" color="fg.muted">
+                <HiOutlineTerminal aria-hidden="true" size={18} color="fg.muted" opacity={0.62} />
+                <Text fontSize="sm">
+                  <Code> Add Braintrust API key in source code. </Code>
+                </Text>
+              </Flex>
+            </Stack>
+
+            <Stack gap="2" mt="2">
+              <Flex align="center" gap="2">
+                <HiOutlineAdjustments aria-hidden="true" size={20} />
+                <Heading size="md">Modify Golden Set</Heading>
+                <Tooltip content="Report output is checked against saved cases.">
+                  <Box as="span" color="gray.400">
+                    <HiInformationCircle aria-label="Modify golden set help" size={18} />
+                  </Box>
+                </Tooltip>
+              </Flex>
+              <Button
+                variant="outline"
+                width="fit-content"
+                justifyContent="flex-start"
+                onClick={() => setIsGoldenSetOpen(true)}
+              >
+                Review & modify cases
+              </Button>
+            </Stack>
+          </Stack>
         </Stack>
       </Box>
+
+      <Drawer.Root
+        open={isGoldenSetOpen}
+        onOpenChange={(details) => setIsGoldenSetOpen(details.open)}
+        placement="end"
+      >
+        <Portal>
+          <Drawer.Backdrop />
+          <Drawer.Positioner padding="6">
+            <Drawer.Content borderRadius="lg">
+              <Drawer.Header>
+                <Drawer.Title>Golden Set (cases checked)</Drawer.Title>
+              </Drawer.Header>
+              <Drawer.Body>
+                <Text color="fg.muted">
+                  Review generated eval candidates before saving them as the golden set.
+                </Text>
+              </Drawer.Body>
+              <Drawer.Footer>
+                <Button variant="outline" onClick={() => setIsGoldenSetOpen(false)}>
+                  Close
+                </Button>
+              </Drawer.Footer>
+              <Drawer.CloseTrigger asChild>
+                <CloseButton size="sm" />
+              </Drawer.CloseTrigger>
+            </Drawer.Content>
+          </Drawer.Positioner>
+        </Portal>
+      </Drawer.Root>
 
       <Box p="8">
         <Stack
@@ -396,14 +474,15 @@ export default function App() {
 
           {previewState === "idle" && (
             <Flex
-              minH="520px"
+              minH="calc(100vh - 64px)"
+              width="full"
               align="center"
               justify="center"
               textAlign="center"
               color="fg.muted"
               opacity={0.62}
             >
-              <Stack align="center" gap="4" maxW="360px">
+              <Stack align="center" gap="4" maxW="360px" transform="translateY(-48px)">
                 <HiOutlineShare aria-hidden="true" size={168} />
                 <Text fontSize="2xl" lineHeight="1.45">
                   Enter a repo and planned change on the left to generate review.
@@ -414,14 +493,15 @@ export default function App() {
 
           {previewState === "loading" && (
             <Flex
-              minH="520px"
+              minH="calc(100vh - 64px)"
+              width="full"
               align="center"
               justify="center"
               textAlign="center"
               color="fg.muted"
               opacity={0.65}
             >
-              <Stack align="center" gap="4">
+              <Stack align="center" gap="4" transform="translateY(-48px)">
                 <Spinner width="112px" height="112px" borderWidth="6px" />
                 <Text fontSize="2xl" lineHeight="1.45">
                   Generating report

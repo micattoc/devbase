@@ -13,18 +13,22 @@ import {
   Portal,
   SegmentGroup,
   Separator,
+  Slider,
   Stack,
   Spinner,
   Text,
   Textarea,
+  Timeline,
   Tooltip as ChakraTooltip,
 } from "@chakra-ui/react"
 import { type ReactNode, useState } from "react"
 import { FiExternalLink } from "react-icons/fi"
 import {
   HiInformationCircle,
+  HiCheck,
   HiLockClosed,
   HiOutlineAdjustments,
+  HiOutlineClock,
   HiOutlineCubeTransparent,
   HiOutlineScale,
   HiOutlineShare,
@@ -33,6 +37,12 @@ import {
 
 const TITLE_WORD_LIMIT = 5
 type PreviewState = "idle" | "loading" | "report"
+
+const fetchLimitMarks = [
+  { value: 0, label: "0" },
+  { value: 10, label: "10" },
+  { value: 20, label: "20" },
+]
 
 function GitHubIcon() {
   return (
@@ -292,9 +302,134 @@ function Sources() {
   )
 }
 
+function FetchLimitSlider({
+  label,
+  value,
+  onValueChange,
+}: {
+  label: string
+  value: number
+  onValueChange: (value: number) => void
+}) {
+  return (
+    <Slider.Root
+      width="full"
+      size="sm"
+      min={0}
+      max={20}
+      step={1}
+      value={[value]}
+      onValueChange={(details) => onValueChange(details.value[0] ?? 0)}
+    >
+      <Flex align="center" mb="3">
+        <Slider.Label>
+          {label}: {value}
+        </Slider.Label>
+      </Flex>
+      <Slider.Control>
+        <Slider.Track>
+          <Slider.Range />
+        </Slider.Track>
+        <Slider.Thumbs rounded="l1" />
+        <Slider.Marks marks={fetchLimitMarks} />
+      </Slider.Control>
+    </Slider.Root>
+  )
+}
+
+function RagUpdateTimeline({
+  prFetchLimit,
+  issueFetchLimit,
+}: {
+  prFetchLimit: number
+  issueFetchLimit: number
+}) {
+  return (
+    <Stack gap="4">
+      <Timeline.Root>
+        <Timeline.Item>
+          <Timeline.Connector>
+            <Timeline.Separator width="2px" bg="black" />
+            <Timeline.Indicator
+              bg="black"
+              color="white"
+              boxSize="5"
+              borderRadius="full"
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+            >
+              <HiCheck aria-hidden="true" size={14} />
+            </Timeline.Indicator>
+          </Timeline.Connector>
+          <Timeline.Content>
+            <Timeline.Title>Fetch</Timeline.Title>
+            <Timeline.Description>
+              Fetched {prFetchLimit} PRs and {issueFetchLimit} issues from GitHub.
+            </Timeline.Description>
+          </Timeline.Content>
+        </Timeline.Item>
+
+        <Timeline.Item>
+          <Timeline.Connector>
+            <Timeline.Separator width="2px" bg="gray.300" />
+            <Timeline.Indicator
+              bg="black"
+              color="white"
+              boxSize="5"
+              borderRadius="full"
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+            >
+              <HiCheck aria-hidden="true" size={14} />
+            </Timeline.Indicator>
+          </Timeline.Connector>
+          <Timeline.Content>
+            <Timeline.Title>Run eval</Timeline.Title>
+            <Timeline.Description>
+              <Badge colorPalette="green" variant="subtle">
+                Passed
+              </Badge>
+            </Timeline.Description>
+          </Timeline.Content>
+        </Timeline.Item>
+
+        <Timeline.Item>
+          <Timeline.Connector>
+            <Timeline.Separator width="2px" bg="gray.300" />
+            <Timeline.Indicator
+              color="gray.500"
+              bg="transparent"
+              boxSize="5"
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+            >
+              <HiOutlineClock aria-hidden="true" size={22} />
+            </Timeline.Indicator>
+          </Timeline.Connector>
+          <Timeline.Content>
+            <Timeline.Title>Promote to live</Timeline.Title>
+            <Timeline.Description>
+              <Badge colorPalette="gray" variant="subtle">
+                Not promoted
+              </Badge>
+            </Timeline.Description>
+          </Timeline.Content>
+        </Timeline.Item>
+      </Timeline.Root>
+
+      <Text color="fg.muted">Staging promoted to live.</Text>
+    </Stack>
+  )
+}
+
 export default function App() {
   const [previewState, setPreviewState] = useState<PreviewState>("idle")
-  const [isGoldenSetOpen, setIsGoldenSetOpen] = useState(false)
+  const [isRagUpdateOpen, setIsRagUpdateOpen] = useState(false)
+  const [prFetchLimit, setPrFetchLimit] = useState(10)
+  const [issueFetchLimit, setIssueFetchLimit] = useState(10)
   const [repo, setRepo] = useState("mockoon/mockoon")
   const [plannedChange, setPlannedChange] = useState("")
   const hasRequiredInput = repo.trim().length > 0 && plannedChange.trim().length > 0
@@ -410,10 +545,10 @@ export default function App() {
             <Stack gap="2" mt="2">
               <Flex align="center" gap="2">
                 <HiOutlineAdjustments aria-hidden="true" size={20} />
-                <Heading size="md">Modify Golden Set</Heading>
-                <Tooltip content="Report output is checked against saved cases.">
+                <Heading size="md">Update RAG</Heading>
+                <Tooltip content="Update index by promoting new data to live storage.">
                   <Box as="span" color="gray.400">
-                    <HiInformationCircle aria-label="Modify golden set help" size={18} />
+                    <HiInformationCircle aria-label="Update RAG help" size={18} />
                   </Box>
                 </Tooltip>
               </Flex>
@@ -421,9 +556,9 @@ export default function App() {
                 variant="outline"
                 width="fit-content"
                 justifyContent="flex-start"
-                onClick={() => setIsGoldenSetOpen(true)}
+                onClick={() => setIsRagUpdateOpen(true)}
               >
-                Review & modify cases
+                Load fresh data
               </Button>
             </Stack>
           </Stack>
@@ -431,8 +566,8 @@ export default function App() {
       </Box>
 
       <Drawer.Root
-        open={isGoldenSetOpen}
-        onOpenChange={(details) => setIsGoldenSetOpen(details.open)}
+        open={isRagUpdateOpen}
+        onOpenChange={(details) => setIsRagUpdateOpen(details.open)}
         placement="end"
       >
         <Portal>
@@ -440,15 +575,35 @@ export default function App() {
           <Drawer.Positioner padding="6">
             <Drawer.Content borderRadius="lg">
               <Drawer.Header>
-                <Drawer.Title>Golden Set (cases checked)</Drawer.Title>
+                <Drawer.Title>Update RAG</Drawer.Title>
               </Drawer.Header>
               <Drawer.Body>
-                <Text color="fg.muted">
-                  Review generated eval candidates before saving them as the golden set.
-                </Text>
+                <Stack gap="8">
+                  <Text color="fg.muted">
+                    Run the n8n quality gate to evaluate staged RAG data before promoting it to live.
+                  </Text>
+
+                  <Stack gap="8">
+                    <FetchLimitSlider
+                      label="Pull requests"
+                      value={prFetchLimit}
+                      onValueChange={setPrFetchLimit}
+                    />
+                    <FetchLimitSlider
+                      label="Issues"
+                      value={issueFetchLimit}
+                      onValueChange={setIssueFetchLimit}
+                    />
+                  </Stack>
+
+                  <RagUpdateTimeline
+                    prFetchLimit={prFetchLimit}
+                    issueFetchLimit={issueFetchLimit}
+                  />
+                </Stack>
               </Drawer.Body>
               <Drawer.Footer>
-                <Button variant="outline" onClick={() => setIsGoldenSetOpen(false)}>
+                <Button variant="outline" onClick={() => setIsRagUpdateOpen(false)}>
                   Close
                 </Button>
               </Drawer.Footer>

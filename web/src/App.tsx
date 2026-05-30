@@ -7,17 +7,43 @@ import {
   Heading,
   Input,
   Link,
+  Portal,
   SegmentGroup,
   Separator,
   Stack,
   Text,
   Textarea,
+  Tooltip as ChakraTooltip,
 } from "@chakra-ui/react"
-import { useState } from "react"
+import { type ReactNode, useState } from "react"
 import { FiExternalLink } from "react-icons/fi"
-import { HiChatAlt2, HiLockClosed, HiOutlineCubeTransparent } from "react-icons/hi"
+import {
+  HiChatAlt2,
+  HiInformationCircle,
+  HiLockClosed,
+  HiOutlineCubeTransparent,
+} from "react-icons/hi"
 
 const TITLE_WORD_LIMIT = 5
+
+function Tooltip({
+  children,
+  content,
+}: {
+  children: ReactNode
+  content: ReactNode
+}) {
+  return (
+    <ChakraTooltip.Root positioning={{ placement: "right" }}>
+      <ChakraTooltip.Trigger asChild>{children}</ChakraTooltip.Trigger>
+      <Portal>
+        <ChakraTooltip.Positioner>
+          <ChakraTooltip.Content>{content}</ChakraTooltip.Content>
+        </ChakraTooltip.Positioner>
+      </Portal>
+    </ChakraTooltip.Root>
+  )
+}
 
 const sections = [
   {
@@ -270,9 +296,21 @@ export default function App() {
           <Separator />
 
           <Stack gap="3">
-            <Heading size="md">
-              Repository
-            </Heading>
+            <Flex align="center" gap="2">
+              <Heading size="md">Repository</Heading>
+              <Tooltip
+                content={
+                  <Stack gap="1">
+                    <Text>Public GitHub repo, or private repo</Text>
+                    <Text>(configure token in source code).</Text>
+                  </Stack>
+                }
+              >
+                <Box as="span" color="gray.400">
+                  <HiInformationCircle aria-label="Repository input help" size={18} />
+                </Box>
+              </Tooltip>
+            </Flex>
             <Input value="mockoon/mockoon" readOnly fontSize="md" />
           </Stack>
 

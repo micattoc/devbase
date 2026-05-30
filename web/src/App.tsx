@@ -1,5 +1,4 @@
 import {
-  Accordion,
   Box,
   Button,
   Flex,
@@ -7,11 +6,13 @@ import {
   Heading,
   Input,
   Link,
+  SegmentGroup,
   Separator,
   Stack,
   Text,
   Textarea,
 } from "@chakra-ui/react"
+import { useState } from "react"
 import { FiExternalLink } from "react-icons/fi"
 
 const TITLE_WORD_LIMIT = 5
@@ -56,7 +57,7 @@ const sources = [
   {
     title: "Fix request body parsing compatibility",
     kind: "pull_request",
-    state: "closed",
+    state: "open",
     url: "https://github.com/mockoon/mockoon/pull/102",
   },
   {
@@ -68,27 +69,57 @@ const sources = [
   },
 ]
 
-function ReportAccordion() {
+function ReportSegments() {
+  const [selectedSection, setSelectedSection] = useState(sections[0].title)
+  const activeSection =
+    sections.find((section) => section.title === selectedSection) ?? sections[0]
+
   return (
-    <Accordion.Root collapsible defaultValue={["Summary"]}>
-      {sections.map((section) => (
-        <Accordion.Item key={section.title} value={section.title}>
-          <Accordion.ItemTrigger>
-            <Text flex="1" fontWeight="medium">
-              {section.title}
-            </Text>
-            <Accordion.ItemIndicator />
-          </Accordion.ItemTrigger>
-          <Accordion.ItemContent>
-            <Accordion.ItemBody>
-              <Text color="fg.muted" lineHeight="1.7">
-                {section.value}
-              </Text>
-            </Accordion.ItemBody>
-          </Accordion.ItemContent>
-        </Accordion.Item>
-      ))}
-    </Accordion.Root>
+    <Stack gap="0">
+      <SegmentGroup.Root
+        value={selectedSection}
+        onValueChange={(details) => setSelectedSection(details.value ?? sections[0].title)}
+        width="fit-content"
+        bg="gray.100"
+        borderWidth="1px"
+        borderRadius="0"
+        p="1"
+        css={{
+          "--segment-indicator-bg": "white",
+          "--segment-indicator-shadow": "var(--chakra-shadows-sm)",
+          "--segment-indicator-radius": "0",
+        }}
+      >
+        <SegmentGroup.Indicator />
+        {sections.map((section) => (
+          <SegmentGroup.Item
+            key={section.title}
+            value={section.title}
+            px="4"
+            minH="9"
+          >
+            <SegmentGroup.ItemText>{section.title}</SegmentGroup.ItemText>
+            <SegmentGroup.ItemHiddenInput />
+          </SegmentGroup.Item>
+        ))}
+      </SegmentGroup.Root>
+
+      <Box
+        bg="white"
+        borderWidth="1px"
+        borderTopRadius="0"
+        borderBottomRadius="lg"
+        p="5"
+        mt="-1px"
+      >
+        <Heading size="md" mb="3">
+          {activeSection.title}
+        </Heading>
+        <Text color="fg.muted" lineHeight="1.7">
+          {activeSection.value}
+        </Text>
+      </Box>
+    </Stack>
   )
 }
 
@@ -104,6 +135,15 @@ function Sources() {
   )
   const closedIssues = sources.filter(
     (source) => source.kind === "issue" && source.state === "closed",
+  )
+
+  const renderStatusLabel = (label: string, count: number) => (
+    <Text fontSize="sm" color="fg.muted" fontWeight="medium">
+      {label}{" "}
+      <Text as="span" fontSize="xs" color="fg.subtle" fontWeight="normal">
+        ({count})
+      </Text>
+    </Text>
   )
 
   const truncateTitle = (title: string) => {
@@ -141,24 +181,22 @@ function Sources() {
 
   return (
     <Stack gap="6">
-      <Box>
-        <Heading size="sm" mb="3">
+      <Box bg="white" borderWidth="1px" borderRadius="lg" p="5">
+        <Heading size="md" mb="3">
           Pull Requests
         </Heading>
-        <Grid templateColumns="repeat(2, minmax(0, 1fr))" gap="6">
+        <Grid templateColumns="minmax(0, 1fr) auto minmax(0, 1fr)" gap="6">
           <Stack gap="3">
-            <Text fontSize="sm" color="fg.muted" fontWeight="medium">
-              Open
-            </Text>
+            {renderStatusLabel("Open", openPullRequests.length)}
             <Stack as="ul" gap="3" listStyleType="none" m="0" p="0">
               {openPullRequests.map(renderSource)}
             </Stack>
           </Stack>
 
+          <Separator orientation="vertical" />
+
           <Stack gap="3">
-            <Text fontSize="sm" color="fg.muted" fontWeight="medium">
-              Closed
-            </Text>
+            {renderStatusLabel("Closed", closedPullRequests.length)}
             <Stack as="ul" gap="3" listStyleType="none" m="0" p="0">
               {closedPullRequests.map(renderSource)}
             </Stack>
@@ -166,26 +204,22 @@ function Sources() {
         </Grid>
       </Box>
 
-      <Separator />
-
-      <Box>
-        <Heading size="sm" mb="3">
+      <Box bg="white" borderWidth="1px" borderRadius="lg" p="5">
+        <Heading size="md" mb="3">
           Issues
         </Heading>
-        <Grid templateColumns="repeat(2, minmax(0, 1fr))" gap="6">
+        <Grid templateColumns="minmax(0, 1fr) auto minmax(0, 1fr)" gap="6">
           <Stack gap="3">
-            <Text fontSize="sm" color="fg.muted" fontWeight="medium">
-              Open
-            </Text>
+            {renderStatusLabel("Open", openIssues.length)}
             <Stack as="ul" gap="3" listStyleType="none" m="0" p="0">
               {openIssues.map(renderSource)}
             </Stack>
           </Stack>
 
+          <Separator orientation="vertical" />
+
           <Stack gap="3">
-            <Text fontSize="sm" color="fg.muted" fontWeight="medium">
-              Closed
-            </Text>
+            {renderStatusLabel("Closed", closedIssues.length)}
             <Stack as="ul" gap="3" listStyleType="none" m="0" p="0">
               {closedIssues.map(renderSource)}
             </Stack>
@@ -245,16 +279,9 @@ export default function App() {
             <Heading size="2xl">Risk Review</Heading>
           </Box>
 
-          <Box bg="white" borderWidth="1px" borderRadius="lg" p="5">
-            <ReportAccordion />
-          </Box>
+          <ReportSegments />
 
-          <Box bg="white" borderWidth="1px" borderRadius="lg" p="5">
-            <Heading size="md" mb="4">
-              Sources
-            </Heading>
-            <Sources />
-          </Box>
+          <Sources />
         </Stack>
       </Box>
     </Grid>

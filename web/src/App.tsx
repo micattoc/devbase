@@ -11,6 +11,7 @@ import {
   SegmentGroup,
   Separator,
   Stack,
+  Spinner,
   Text,
   Textarea,
   Tooltip as ChakraTooltip,
@@ -18,13 +19,28 @@ import {
 import { type ReactNode, useState } from "react"
 import { FiExternalLink } from "react-icons/fi"
 import {
-  HiChatAlt2,
   HiInformationCircle,
   HiLockClosed,
   HiOutlineCubeTransparent,
+  HiOutlineShare,
 } from "react-icons/hi"
 
 const TITLE_WORD_LIMIT = 5
+type PreviewState = "idle" | "loading" | "report"
+
+function GitHubIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 16 16"
+      width="18"
+      height="18"
+      fill="currentColor"
+    >
+      <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8" />
+    </svg>
+  )
+}
 
 function Tooltip({
   children,
@@ -174,9 +190,7 @@ function Sources() {
       alignItems="center"
       gap="1"
     >
-      {status === "Open" ? (
-        <HiChatAlt2 aria-hidden="true" />
-      ) : (
+      {status === "Closed" && (
         <HiLockClosed aria-hidden="true" />
       )}
       {status}{" "}
@@ -193,7 +207,7 @@ function Sources() {
       return title
     }
 
-    return `${words.slice(0, TITLE_WORD_LIMIT).join(" ")} [...]`
+    return `${words.slice(0, TITLE_WORD_LIMIT).join(" ")} ...`
   }
 
   const renderSource = (source: (typeof sources)[number]) => (
@@ -222,9 +236,10 @@ function Sources() {
   return (
     <Stack gap="6">
       <Box bg="white" borderWidth="1px" borderRadius="lg" p="5">
-        <Heading size="md" mb="3">
-          Pull Requests
-        </Heading>
+        <Flex align="center" gap="2" mb="6">
+          <GitHubIcon />
+          <Heading size="md">Pull Requests</Heading>
+        </Flex>
         <Grid templateColumns="minmax(0, 1fr) auto minmax(0, 1fr)" gap="6">
           <Stack gap="3">
             {renderStatusBadge("Open", openPullRequests.length)}
@@ -245,9 +260,10 @@ function Sources() {
       </Box>
 
       <Box bg="white" borderWidth="1px" borderRadius="lg" p="5">
-        <Heading size="md" mb="3">
-          Issues
-        </Heading>
+        <Flex align="center" gap="2" mb="6">
+          <GitHubIcon />
+          <Heading size="md">Issues</Heading>
+        </Flex>
         <Grid templateColumns="minmax(0, 1fr) auto minmax(0, 1fr)" gap="6">
           <Stack gap="3">
             {renderStatusBadge("Open", openIssues.length)}
@@ -271,6 +287,29 @@ function Sources() {
 }
 
 export default function App() {
+  const [previewState, setPreviewState] = useState<PreviewState>("idle")
+  const [repo, setRepo] = useState("mockoon/mockoon")
+  const [plannedChange, setPlannedChange] = useState("")
+  const hasRequiredInput = repo.trim().length > 0 && plannedChange.trim().length > 0
+
+  const handleGenerateReport = async () => {
+    if (!hasRequiredInput || previewState === "loading") {
+      return
+    }
+
+    setPreviewState("loading")
+    await new Promise((resolve) => window.setTimeout(resolve, 800))
+    setPreviewState("report")
+  }
+
+  const handleInputChange = (nextValue: string, updateValue: (value: string) => void) => {
+    updateValue(nextValue)
+
+    if (previewState === "report") {
+      setPreviewState("idle")
+    }
+  }
+
   return (
     <Grid
       minH="100vh"
@@ -311,7 +350,11 @@ export default function App() {
                 </Box>
               </Tooltip>
             </Flex>
-            <Input value="mockoon/mockoon" readOnly fontSize="md" />
+            <Input
+              value={repo}
+              onChange={(event) => handleInputChange(event.target.value, setRepo)}
+              fontSize="md"
+            />
           </Stack>
 
           <Stack gap="3">
@@ -319,26 +362,80 @@ export default function App() {
               Planned change
             </Heading>
             <Textarea
+              value={plannedChange}
+              onChange={(event) =>
+                handleInputChange(event.target.value, setPlannedChange)
+              }
               minH="180px"
               fontSize="md"
               placeholder="I am changing request body parsing for mocked endpoints..."
             />
-            <Button bg="black" color="white">
-              Generate report
+            <Button
+              bg="black"
+              color="white"
+              disabled={!hasRequiredInput || previewState === "loading"}
+              onClick={handleGenerateReport}
+            >
+              {previewState === "loading" ? "Generating report" : "Generate report"}
             </Button>
           </Stack>
         </Stack>
       </Box>
 
       <Box p="8">
-        <Stack gap="6" maxW="860px">
-          <Box>
-            <Heading size="2xl">Risk Review</Heading>
-          </Box>
+        <Stack
+          gap="6"
+          width="full"
+          maxW={previewState === "report" ? "860px" : "none"}
+        >
+          {previewState === "report" && (
+            <Box>
+              <Heading size="2xl">Risk Review</Heading>
+            </Box>
+          )}
 
-          <ReportSegments />
+          {previewState === "idle" && (
+            <Flex
+              minH="520px"
+              align="center"
+              justify="center"
+              textAlign="center"
+              color="fg.muted"
+              opacity={0.62}
+            >
+              <Stack align="center" gap="4" maxW="360px">
+                <HiOutlineShare aria-hidden="true" size={168} />
+                <Text fontSize="2xl" lineHeight="1.45">
+                  Enter a repo and planned change on the left to generate review.
+                </Text>
+              </Stack>
+            </Flex>
+          )}
 
-          <Sources />
+          {previewState === "loading" && (
+            <Flex
+              minH="520px"
+              align="center"
+              justify="center"
+              textAlign="center"
+              color="fg.muted"
+              opacity={0.65}
+            >
+              <Stack align="center" gap="4">
+                <Spinner width="112px" height="112px" borderWidth="6px" />
+                <Text fontSize="2xl" lineHeight="1.45">
+                  Generating report
+                </Text>
+              </Stack>
+            </Flex>
+          )}
+
+          {previewState === "report" && (
+            <>
+              <ReportSegments />
+              <Sources />
+            </>
+          )}
         </Stack>
       </Box>
     </Grid>

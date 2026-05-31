@@ -12,6 +12,7 @@ from config import load_settings
 from data.rag_storage_status import read_rag_storage_status
 from scripts.n8n_setup_status import read_n8n_setup_status
 from data.promote_storage import promote_staging_to_live
+from scripts.golden_set_status import read_golden_set_status
 from eval.local_eval import run_eval
 from workflows.graph import risk_workflow
 
@@ -67,6 +68,12 @@ class RagStorageStatusResponse(BaseModel):
     days_ago: int | None = None
 
 
+class GoldenSetStatusResponse(BaseModel):
+    established: bool
+    path: str
+    case_count: int
+
+
 # Test health of REST API
 @app.get("/health")
 async def health() -> dict[str, Any]:
@@ -100,6 +107,18 @@ async def rag_storage_status() -> RagStorageStatusResponse:
         modified_at=status.modified_at,
         display_date=status.display_date,
         days_ago=status.days_ago,
+    )
+
+
+# Check if a golden set is available for the eval to run
+@app.get("/golden-set-status", response_model=GoldenSetStatusResponse)
+async def golden_set_status() -> GoldenSetStatusResponse:
+    status = read_golden_set_status()
+
+    return GoldenSetStatusResponse(
+        established=True,
+        path=status.path,
+        case_count=status.case_count,
     )
 
 

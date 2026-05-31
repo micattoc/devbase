@@ -16,6 +16,7 @@ import {
   Separator,
   Slider,
   Stack,
+  Highlight,
   Spinner,
   Text,
   Textarea,
@@ -35,6 +36,7 @@ import {
   HiOutlineCog,
   HiOutlineScale,
   HiOutlineShare,
+  HiOutlineDocumentText,
   HiOutlineTerminal,
 } from "react-icons/hi"
 
@@ -48,6 +50,10 @@ type RagStorageStatusResponse = {
   exists: boolean
   display_date: string | null
   days_ago: number | null
+}
+type GoldenSetStatusResponse = {
+  established: boolean
+  case_count: number
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000"
@@ -454,6 +460,8 @@ export default function App() {
   const [n8nSetupState, setN8nSetupState] = useState<N8nSetupState>("missing")
   const [ragStorageStatus, setRagStorageStatus] =
     useState<RagStorageStatusResponse | null>(null)
+  const [goldenSetStatus, setGoldenSetStatus] =
+    useState<GoldenSetStatusResponse | null>(null)
   const [prFetchLimit, setPrFetchLimit] = useState(10)
   const [issueFetchLimit, setIssueFetchLimit] = useState(10)
   const [repo, setRepo] = useState("mockoon/mockoon")
@@ -499,6 +507,25 @@ export default function App() {
     void loadRagStorageStatus()
   }, [])
 
+  useEffect(() => {
+    const loadGoldenSetStatus = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/golden-set-status`)
+
+        if (!response.ok) {
+          setGoldenSetStatus(null)
+          return
+        }
+
+        setGoldenSetStatus((await response.json()) as GoldenSetStatusResponse)
+      } catch {
+        setGoldenSetStatus(null)
+      }
+    }
+
+    void loadGoldenSetStatus()
+  }, [])
+
   const lastUpdatedText =
     ragStorageStatus?.exists && ragStorageStatus.display_date !== null
       ? `Last updated: ${ragStorageStatus.display_date} (${ragStorageStatus.days_ago ?? 0} days ago)`
@@ -540,10 +567,14 @@ export default function App() {
               <HiOutlineCubeTransparent aria-hidden="true" size={30} />
               <Heading size="2xl">Devbase</Heading>
             </Flex>
-            <Stack gap="2" mt="1">
-              <Text color="fg.muted">Changing code? Describe the change and review potential risks. </Text>
-
-            </Stack>
+            <Text color="fg.muted" lineHeight="1.6" mt="1">
+              <Highlight
+                query={["review risks"]}
+                styles={{ px: "0.5", fontWeight: "semibold", fontStyle: "italic", }}
+              >
+                Changing code? Describe the change to review risks based on current progress recorded in GitHub.
+              </Highlight>
+            </Text>
           </Box>
 
           <Separator />
@@ -662,29 +693,56 @@ export default function App() {
               <Drawer.Body>
                 <Stack gap="8">
                   <Stack align="center" gap="8">
-                    {n8nSetupState === "ready" ? (
-                      <Alert.Root status="info">
-                        <Alert.Indicator>
-                          <HiOutlineCog />
-                        </Alert.Indicator>
-                        <Stack gap="1">
-                          <Alert.Title>n8n is ready</Alert.Title>
-                          <Alert.Description>
-                            Ensure workflow container is running locally before starting.
-                          </Alert.Description>
-                        </Stack>
-                      </Alert.Root>
-                    ) : (
-                      <Alert.Root status="error">
-                        <Alert.Indicator />
-                        <Stack gap="1">
-                          <Alert.Title>n8n is not setup</Alert.Title>
-                          <Alert.Description>
-                            To evaluate fresh data against golden set, you need to setup n8n workflow locally.
-                          </Alert.Description>
-                        </Stack>
-                      </Alert.Root>
-                    )}
+                    <Stack width="full" gap="3">
+                      {goldenSetStatus?.established ? (
+                        <Alert.Root status="success">
+                          <Alert.Indicator>
+                            <HiOutlineDocumentText />
+                          </Alert.Indicator>
+
+                          <Stack gap="1">
+                            <Alert.Title>Golden set is available</Alert.Title>
+                            <Alert.Description>
+                              {goldenSetStatus.case_count} cases are ready for eval check.
+                            </Alert.Description>
+                          </Stack>
+                        </Alert.Root>
+                      ) : (
+                        <Alert.Root status="error">
+                          <Alert.Indicator />
+                          <Stack gap="1">
+                            <Alert.Title>Golden set is empty</Alert.Title>
+                            <Alert.Description>
+                              Add cases to the set locally. Follow README instructions.
+                            </Alert.Description>
+                          </Stack>
+                        </Alert.Root>
+                      )}
+
+                      {n8nSetupState === "ready" ? (
+                        <Alert.Root status="info">
+                          <Alert.Indicator>
+                            <HiOutlineCog />
+                          </Alert.Indicator>
+                          <Stack gap="1">
+                            <Alert.Title>n8n is ready</Alert.Title>
+                            <Alert.Description>
+                              Ensure workflow container is running locally before starting.
+                            </Alert.Description>
+                          </Stack>
+                        </Alert.Root>
+                      ) : (
+                        <Alert.Root status="error">
+                          <Alert.Indicator />
+                          <Stack gap="1">
+                            <Alert.Title>n8n is not setup</Alert.Title>
+                            <Alert.Description>
+                              To evaluate LLM quality, setup the n8n eval workflow locally.
+                            </Alert.Description>
+                          </Stack>
+                        </Alert.Root>
+                      )}
+                    </Stack>
 
                     <FetchLimitSlider
                       label="Pull requests"

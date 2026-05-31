@@ -44,6 +44,11 @@ type N8nSetupState = "missing" | "ready"
 type N8nSetupResponse = {
   imported: boolean
 }
+type RagStorageStatusResponse = {
+  exists: boolean
+  display_date: string | null
+  days_ago: number | null
+}
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000"
 
@@ -447,6 +452,8 @@ export default function App() {
   const [isRagUpdateOpen, setIsRagUpdateOpen] = useState(false)
   const [hasStartedRagUpdate, setHasStartedRagUpdate] = useState(false)
   const [n8nSetupState, setN8nSetupState] = useState<N8nSetupState>("missing")
+  const [ragStorageStatus, setRagStorageStatus] =
+    useState<RagStorageStatusResponse | null>(null)
   const [prFetchLimit, setPrFetchLimit] = useState(10)
   const [issueFetchLimit, setIssueFetchLimit] = useState(10)
   const [repo, setRepo] = useState("mockoon/mockoon")
@@ -472,6 +479,34 @@ export default function App() {
 
     void loadN8nSetupStatus()
   }, [])
+
+  useEffect(() => {
+    const loadRagStorageStatus = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/rag-storage-status`)
+
+        if (!response.ok) {
+          setRagStorageStatus(null)
+          return
+        }
+
+        setRagStorageStatus((await response.json()) as RagStorageStatusResponse)
+      } catch {
+        setRagStorageStatus(null)
+      }
+    }
+
+    void loadRagStorageStatus()
+  }, [])
+
+  const lastUpdatedText =
+    ragStorageStatus?.exists && ragStorageStatus.display_date !== null
+      ? `Last updated: ${ragStorageStatus.display_date} (${ragStorageStatus.days_ago ?? 0} days ago)`
+      : "Last updated: Not available"
+  const ragLastUpdatedText =
+    ragStorageStatus?.exists && ragStorageStatus.display_date !== null
+      ? `RAG last updated: ${ragStorageStatus.display_date} (${ragStorageStatus.days_ago ?? 0} days ago)`
+      : "RAG last updated: Not available"
 
   const handleGenerateReport = async () => {
     if (!hasRequiredInput || previewState === "loading") {
@@ -617,7 +652,12 @@ export default function App() {
           <Drawer.Positioner padding="6">
             <Drawer.Content borderRadius="lg">
               <Drawer.Header>
-                <Drawer.Title>Update RAG</Drawer.Title>
+                <Stack gap="1">
+                  <Drawer.Title>Update RAG</Drawer.Title>
+                  <Text color="fg.muted" fontSize="sm">
+                    {lastUpdatedText}
+                  </Text>
+                </Stack>
               </Drawer.Header>
               <Drawer.Body>
                 <Stack gap="8">
@@ -697,6 +737,9 @@ export default function App() {
           {previewState === "report" && (
             <Box>
               <Heading size="2xl">Risk Review</Heading>
+              <Text color="fg.muted" fontSize="sm" mt="1">
+                {ragLastUpdatedText}
+              </Text>
             </Box>
           )}
 

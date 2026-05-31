@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from config import load_settings
+from data.rag_storage_status import read_rag_storage_status
 from scripts.n8n_setup_status import read_n8n_setup_status
 from data.promote_storage import promote_staging_to_live
 from eval.local_eval import run_eval
@@ -59,6 +60,13 @@ class N8nSetupResponse(BaseModel):
     imported_at: str | None = None
 
 
+class RagStorageStatusResponse(BaseModel):
+    exists: bool
+    modified_at: str | None = None
+    display_date: str | None = None
+    days_ago: int | None = None
+
+
 # Test health of REST API
 @app.get("/health")
 async def health() -> dict[str, Any]:
@@ -68,6 +76,7 @@ async def health() -> dict[str, Any]:
     }
 
 
+# Check if n8n workflow has been previously imported
 @app.get("/n8n-setup", response_model=N8nSetupResponse)
 async def n8n_setup() -> N8nSetupResponse:
     settings = load_settings(require_secrets=False)
@@ -77,6 +86,20 @@ async def n8n_setup() -> N8nSetupResponse:
         imported=status.imported,
         workflow_name=status.workflow_name,
         imported_at=status.imported_at,
+    )
+
+
+# Determine the last time RAG was updated
+@app.get("/rag-storage-status", response_model=RagStorageStatusResponse)
+async def rag_storage_status() -> RagStorageStatusResponse:
+    settings = load_settings(require_secrets=False)
+    status = read_rag_storage_status(settings.lightrag_live_dir)
+
+    return RagStorageStatusResponse(
+        exists=status.exists,
+        modified_at=status.modified_at,
+        display_date=status.display_date,
+        days_ago=status.days_ago,
     )
 
 

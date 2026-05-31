@@ -116,7 +116,7 @@ async def golden_set_status() -> GoldenSetStatusResponse:
     status = read_golden_set_status()
 
     return GoldenSetStatusResponse(
-        established=True,
+        established=status.established,
         path=status.path,
         case_count=status.case_count,
     )

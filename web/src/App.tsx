@@ -10,6 +10,7 @@ import {
   Grid,
   Heading,
   Input,
+  InputGroup,
   Link,
   Portal,
   SegmentGroup,
@@ -36,6 +37,7 @@ import {
   HiOutlineDocumentSearch,
   HiOutlineDocumentText,
   HiOutlineFolder,
+  HiOutlineFolderDownload,
   HiAtSymbol,
   HiOutlineScale,
   HiOutlineShare,
@@ -174,7 +176,7 @@ function ReportSegments() {
         value={selectedSection}
         onValueChange={(details) => setSelectedSection(details.value ?? sections[0].title)}
         width="fit-content"
-        bg="gray.100"
+        bg="bg.emphasized"
         borderWidth="1px"
         borderRadius="0"
         p="1"
@@ -192,7 +194,7 @@ function ReportSegments() {
             px="4"
             minH="9"
           >
-            <SegmentGroup.ItemText>{section.title}</SegmentGroup.ItemText>
+            <SegmentGroup.ItemText fontSize="md">{section.title}</SegmentGroup.ItemText>
             <SegmentGroup.ItemHiddenInput />
           </SegmentGroup.Item>
         ))}
@@ -206,9 +208,7 @@ function ReportSegments() {
         p="5"
         mt="-1px"
       >
-        <Heading size="md" mb="3">
-          {activeSection.title}
-        </Heading>
+        
         <Text color="fg.muted" lineHeight="1.7">
           {activeSection.value}
         </Text>
@@ -285,7 +285,7 @@ function Sources() {
 
   return (
     <Stack gap="6">
-      <Box bg="white" borderWidth="1px" borderRadius="lg" p="5">
+      <Box bg="white" borderWidth="1px" borderRadius="lg" borderColor="blue.subtle" p="5">
         <Flex align="center" gap="2" mb="6">
           <GitHubIcon />
           <Heading size="md">Pull Requests</Heading>
@@ -309,7 +309,7 @@ function Sources() {
         </Grid>
       </Box>
 
-      <Box bg="white" borderWidth="1px" borderRadius="lg" p="5">
+      <Box bg="white" borderWidth="1px" borderRadius="lg" borderColor="blue.subtle" p="5">
         <Flex align="center" gap="2" mb="6">
           <GitHubIcon />
           <Heading size="md">Issues</Heading>
@@ -359,8 +359,13 @@ function FetchLimitSlider({
       onValueChange={(details) => onValueChange(details.value[0] ?? 0)}
     >
       <Flex align="center" mb="3">
-        <Slider.Label>
-          {label}: {value}
+        <Slider.Label display="inline-flex" alignItems="center" gap="1">
+          <Heading as="span" size="md">
+            {label}:
+          </Heading>
+          <Text as="span" fontSize="md" fontWeight="semibold" lineHeight="1.2">
+            {value}
+          </Text>
         </Slider.Label>
       </Flex>
       <Slider.Control>
@@ -425,11 +430,15 @@ function RagUpdateTimeline({
             <Timeline.Title fontSize="md">Fetch</Timeline.Title>
             <Timeline.Description>
               <Flex align="center" gap="1" fontSize="sm">
-                <HiOutlineFolder aria-hidden="true" size={17} />
+                {isFetchComplete ? (
+                  <HiOutlineFolder aria-hidden="true" size={17} />
+                ) : (
+                  <HiOutlineFolderDownload aria-hidden="true" size={17} />
+                )}
                 <Text as="span" fontSize="m">
                   {isFetchComplete
                     ? `${prFetchLimit} PRs and ${issueFetchLimit} issues`
-                    : "Fetching data from GitHub..."}
+                    : "Fetching from GitHub..."}
                 </Text>
               </Flex>
             </Timeline.Description>
@@ -447,7 +456,7 @@ function RagUpdateTimeline({
               <Timeline.Description>
                 {isEvalComplete ? (
                   <Badge colorPalette="green" variant="subtle">
-                    Passed
+                    <Text fontSize="m">Passed</Text>
                   </Badge>
                 ) : (
                   <Flex align="center" gap="1" fontSize="sm">
@@ -505,6 +514,8 @@ export default function App() {
   const [plannedChange, setPlannedChange] = useState("")
   const ragUpdateTimers = useRef<number[]>([])
   const hasRequiredInput = repo.trim().length > 0 && plannedChange.trim().length > 0
+  const isRagUpdateConfigured =
+    goldenSetStatus?.established === true && n8nSetupState === "ready"
 
   useEffect(() => {
     const loadN8nSetupStatus = async () => {
@@ -667,57 +678,66 @@ export default function App() {
 
           <Separator />
 
-          <Stack gap="3" mb="3">
-            <Flex align="center" gap="2">
-              <Heading size="md">Repository</Heading>
-              <Tooltip
-                content={
-                  <Stack gap="1">
-                    <Text>Public GitHub repo, or private repo</Text>
-                    <Text>(configure token in source code).</Text>
-                  </Stack>
-                }
-              >
-                <Box as="span" color="gray.400">
-                  <HiInformationCircle aria-label="Repository input help" size={18} />
-                </Box>
-              </Tooltip>
-            </Flex>
-            <Input
-              value={repo}
-              onChange={(event) => handleInputChange(event.target.value, setRepo)}
-              fontSize="md"
-              placeholder="owner/repo"
-            />
-          </Stack>
+          <Box bg="gray.100" p="4" borderRadius="md" mt="3" mb="5">
+            <Stack gap="5" mb="2">
+              <Stack gap="3" mb="3">
+                <Flex align="center" gap="2">
+                  <Heading size="md">Repository</Heading>
+                  <Tooltip
+                    content={
+                      <Stack gap="1">
+                        <Text>Public GitHub repo, or private repo</Text>
+                        <Text>(configure token in source code).</Text>
+                      </Stack>
+                    }
+                  >
+                    <Box as="span" color="gray.400">
+                      <HiInformationCircle aria-label="Repository input help" size={18} />
+                    </Box>
+                  </Tooltip>
+                </Flex>
+                <InputGroup startAddon="github.com/">
+                    <Input
+                      value={repo}
+                      onChange={(event) => handleInputChange(event.target.value, setRepo)}
+                      fontSize="md"
+                      bg="white"
+                      borderColor="border.emphasized"
+                      placeholder="owner/repo"
+                    />
+                </InputGroup>
+                
+              </Stack>
 
-          <Stack gap="3">
-            <Heading size="md">
-              Planned change
-            </Heading>
-            <Textarea
-              value={plannedChange}
-              onChange={(event) =>
-                handleInputChange(event.target.value, setPlannedChange)
-              }
-              minH="125px"
-              resize="none"
-              fontSize="md"
-              placeholder="I am changing request body parsing for mocked endpoints..."
-            />
-            <Button
-              bg="black"
-              color="white"
-              width="fit-content"
-              alignSelf="center"
-              disabled={!hasRequiredInput || previewState === "loading"}
-              onClick={handleGenerateReport}
-            >
-              {previewState === "loading" ? "Generating report" : "Generate report"}
-            </Button>
-          </Stack>
-
-          <Separator />
+              <Stack gap="3">
+                <Heading size="md">
+                  Planned change
+                </Heading>
+                <Textarea
+                  value={plannedChange}
+                  onChange={(event) =>
+                    handleInputChange(event.target.value, setPlannedChange)
+                  }
+                  minH="125px"
+                  resize="none"
+                  fontSize="md"
+                  bg="white"
+                  borderColor="border.emphasized"
+                  placeholder="I am changing request body parsing for mocked endpoints..."
+                />
+                <Button
+                  bg="black"
+                  color="white"
+                  width="fit-content"
+                  alignSelf="center"
+                  disabled={!hasRequiredInput || previewState === "loading"}
+                  onClick={handleGenerateReport}
+                >
+                  {previewState === "loading" ? "Generating report" : "Generate report"}
+                </Button>
+              </Stack>
+            </Stack>
+          </Box>
 
           <Stack gap="5" pt="2">
             <Stack gap="2" mb="3">
@@ -832,7 +852,7 @@ export default function App() {
                       )}
                     </Stack>
 
-                    {!hasStartedRagUpdate && (
+                    {isRagUpdateConfigured && !hasStartedRagUpdate && (
                       <>
                         <FetchLimitSlider
                           label="Pull requests"

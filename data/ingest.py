@@ -92,6 +92,8 @@ async def ingest_records(records: list[dict[str, Any]], manifest_path: Path) -> 
                 "kind": "pull_request" if record_type in {"pull_request", "pr_review_comment"} else "issue",
                 "state": record.get("state") or "open",
                 "url": record["url"],
+                "created_at": record.get("created_at") or "",
+                "updated_at": record.get("updated_at") or "",
             }
 
         if key in inserted_keys:

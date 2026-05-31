@@ -34,6 +34,7 @@ app.add_middleware(
 GITHUB_SOURCE_PATTERN = re.compile(
     r"https://github\.com/(?P<repo>[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/(?:issues|pull)/(?P<number>\d+)"
 )
+MAX_SOURCES_PER_KIND = 10
 
 
 """ Defining request and response bodies for specific actions """
@@ -47,6 +48,7 @@ class SourceDetail(BaseModel):
     kind: str
     state: str
     url: str
+    updated_at: str | None = None
 
 
 class RiskResponse(BaseModel):
@@ -120,6 +122,7 @@ def build_source_detail(url: str, source_index: dict[str, dict[str, str]]) -> So
             kind=indexed_source.get("kind", "pull_request" if "/pull/" in url else "issue"),
             state=indexed_source.get("state", "open"),
             url=url,
+            updated_at=indexed_source.get("updated_at") or indexed_source.get("created_at") or None,
         )
 
     match = GITHUB_SOURCE_PATTERN.search(url)
@@ -139,6 +142,7 @@ def build_source_detail(url: str, source_index: dict[str, dict[str, str]]) -> So
                 kind=detail["kind"],
                 state=detail["state"],
                 url=url,
+                updated_at=detail.get("updated_at") or detail.get("created_at") or None,
             )
         except requests.RequestException:
             pass
@@ -148,7 +152,21 @@ def build_source_detail(url: str, source_index: dict[str, dict[str, str]]) -> So
         kind="pull_request" if "/pull/" in url else "issue",
         state="open",
         url=url,
+        updated_at=None,
     )
+
+
+def newest_sources_per_kind(source_details: list[SourceDetail]) -> list[SourceDetail]:
+    """Return newest cited PR and issue sources, capped separately."""
+
+    selected_sources: list[SourceDetail] = []
+
+    for kind in ("pull_request", "issue"):
+        matching_sources = [source for source in source_details if source.kind == kind]
+        matching_sources.sort(key=lambda source: source.updated_at or "", reverse=True)
+        selected_sources.extend(matching_sources[:MAX_SOURCES_PER_KIND])
+
+    return selected_sources
 
 
 # Test health of REST API
@@ -242,7 +260,10 @@ async def change_risk(request: RiskRequest) -> RiskResponse:
 
     source_urls = result.get("sources", [])
     source_index = load_source_index(source_index_path(settings.ingestion_manifest_path))
-    source_details = [build_source_detail(url, source_index) for url in source_urls]
+    source_details = newest_sources_per_kind(
+        [build_source_detail(url, source_index) for url in source_urls]
+    )
+    source_urls = [source.url for source in source_details]
 
     return RiskResponse(
         report=result.get("report"),

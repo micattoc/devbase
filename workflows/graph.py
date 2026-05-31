@@ -75,6 +75,7 @@ def citation_validator(state: RiskWorkflowState) -> RiskWorkflowState:
     # Only issue and pull request URLs are valid UI sources.
     for match in GITHUB_ISSUE_OR_PULL_PATTERN.finditer(report):
         path_type = "pull" if "/pull/" in match.group(0) else "issues"
+
         url = f"https://github.com/{match.group('repo')}/{path_type}/{match.group('number')}"
         if url not in seen:
             seen.add(url)

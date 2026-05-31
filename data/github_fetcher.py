@@ -232,6 +232,8 @@ def fetch_github_source_detail(repo: str, kind: str, number: str) -> dict[str, s
         "kind": kind,
         "state": item.get("state") or "open",
         "url": item["html_url"],
+        "created_at": item.get("created_at") or "",
+        "updated_at": item.get("updated_at") or "",
     }
 
 

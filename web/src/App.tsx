@@ -57,6 +57,7 @@ type ReportSource = {
   kind: "issue" | "pull_request"
   state: "open" | "closed"
   url: string
+  updated_at?: string | null
 }
 type N8nSetupResponse = {
   imported: boolean
@@ -474,7 +475,12 @@ function Sources({ sources }: { sources: ReportSource[] }) {
         gap="2"
         _hover={{ color: "blue.600", textDecoration: "underline" }}
       >
-        <Text as="span">{truncateTitle(source.title)}</Text>
+        <Text as="span">
+          {(() => {
+            const number = source.url.match(/\/(?:issues|pull)\/(\d+)/)?.[1]
+            return `${number ? `#${number} ` : ""}${truncateTitle(source.title)}`
+          })()}
+        </Text>
         <Box as="span" flexShrink={0} boxSize="16px" lineHeight="1">
           <FiExternalLink aria-hidden="true" size={16} />
         </Box>

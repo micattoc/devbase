@@ -23,7 +23,7 @@ import {
   Timeline,
   Tooltip as ChakraTooltip,
 } from "@chakra-ui/react"
-import { type ReactNode, useEffect, useState } from "react"
+import { type ReactNode, useEffect, useRef, useState } from "react"
 import { FiExternalLink } from "react-icons/fi"
 import {
   HiInformationCircle,
@@ -32,17 +32,20 @@ import {
   HiOutlineAdjustments,
   HiOutlineClock,
   HiOutlineCubeTransparent,
-  HiOutlineFolder,
   HiOutlineCog,
+  HiOutlineDocumentSearch,
+  HiOutlineDocumentText,
+  HiOutlineFolder,
+  HiAtSymbol,
   HiOutlineScale,
   HiOutlineShare,
-  HiOutlineDocumentText,
   HiOutlineTerminal,
 } from "react-icons/hi"
 
 const TITLE_WORD_LIMIT = 5
 type PreviewState = "idle" | "loading" | "report"
 type N8nSetupState = "missing" | "ready"
+type RagUpdateStage = "idle" | "fetching" | "evaluating" | "complete"
 type N8nSetupResponse = {
   imported: boolean
 }
@@ -81,16 +84,27 @@ function GitHubIcon() {
 function Tooltip({
   children,
   content,
+  placement = "right",
+  showArrow = false,
 }: {
   children: ReactNode
   content: ReactNode
+  placement?: "right" | "bottom"
+  showArrow?: boolean
 }) {
   return (
-    <ChakraTooltip.Root positioning={{ placement: "right" }}>
+    <ChakraTooltip.Root positioning={{ placement }}>
       <ChakraTooltip.Trigger asChild>{children}</ChakraTooltip.Trigger>
       <Portal>
         <ChakraTooltip.Positioner>
-          <ChakraTooltip.Content>{content}</ChakraTooltip.Content>
+          <ChakraTooltip.Content>
+            {showArrow && (
+              <ChakraTooltip.Arrow>
+                <ChakraTooltip.ArrowTip />
+              </ChakraTooltip.Arrow>
+            )}
+            {content}
+          </ChakraTooltip.Content>
         </ChakraTooltip.Positioner>
       </Portal>
     </ChakraTooltip.Root>
@@ -363,92 +377,114 @@ function FetchLimitSlider({
 function RagUpdateTimeline({
   prFetchLimit,
   issueFetchLimit,
+  stage,
 }: {
   prFetchLimit: number
   issueFetchLimit: number
+  stage: RagUpdateStage
 }) {
+  const isFetchComplete = stage === "evaluating" || stage === "complete"
+  const isEvalComplete = stage === "complete"
+
+  const renderCompletedIndicator = () => (
+    <Timeline.Indicator
+      bg="black"
+      color="white"
+      boxSize="6"
+      borderRadius="full"
+      display="flex"
+      alignItems="center"
+      justifyContent="center"
+    >
+      <HiCheck aria-hidden="true" size={18} />
+    </Timeline.Indicator>
+  )
+
+  const renderPendingIndicator = () => (
+    <Timeline.Indicator
+      color="gray.500"
+      bg="transparent"
+      boxSize="6"
+      display="flex"
+      alignItems="center"
+      justifyContent="center"
+    >
+      <HiOutlineClock aria-hidden="true" size={28} />
+    </Timeline.Indicator>
+  )
+
   return (
-    <Stack gap="4">
+    <Stack gap="5" p="5">
       <Timeline.Root>
         <Timeline.Item>
           <Timeline.Connector>
-            <Timeline.Separator width="2px" bg="black" />
-            <Timeline.Indicator
-              bg="black"
-              color="white"
-              boxSize="5"
-              borderRadius="full"
-              display="flex"
-              alignItems="center"
-              justifyContent="center"
-            >
-              <HiCheck aria-hidden="true" size={14} />
-            </Timeline.Indicator>
+            <Timeline.Separator width="2px" bg={isFetchComplete ? "black" : "gray.300"} />
+            {isFetchComplete ? renderCompletedIndicator() : renderPendingIndicator()}
           </Timeline.Connector>
           <Timeline.Content>
-            <Timeline.Title>Fetch</Timeline.Title>
+            <Timeline.Title fontSize="md">Fetch</Timeline.Title>
             <Timeline.Description>
-              <Flex align="center" gap="1">
-                <HiOutlineFolder aria-hidden="true" size={16} />
-                <Text as="span">
-                  Fetched {prFetchLimit} PRs and {issueFetchLimit} issues.
+              <Flex align="center" gap="1" fontSize="sm">
+                <HiOutlineFolder aria-hidden="true" size={17} />
+                <Text as="span" fontSize="m">
+                  {isFetchComplete
+                    ? `${prFetchLimit} PRs and ${issueFetchLimit} issues`
+                    : "Fetching data from GitHub..."}
                 </Text>
               </Flex>
             </Timeline.Description>
           </Timeline.Content>
         </Timeline.Item>
 
-        <Timeline.Item>
-          <Timeline.Connector>
-            <Timeline.Separator width="2px" bg="gray.300" />
-            <Timeline.Indicator
-              bg="black"
-              color="white"
-              boxSize="5"
-              borderRadius="full"
-              display="flex"
-              alignItems="center"
-              justifyContent="center"
-            >
-              <HiCheck aria-hidden="true" size={14} />
-            </Timeline.Indicator>
-          </Timeline.Connector>
-          <Timeline.Content>
-            <Timeline.Title>Run eval</Timeline.Title>
-            <Timeline.Description>
-              <Badge colorPalette="green" variant="subtle">
-                Passed
-              </Badge>
-            </Timeline.Description>
-          </Timeline.Content>
-        </Timeline.Item>
+        {(stage === "evaluating" || stage === "complete") && (
+          <Timeline.Item>
+            <Timeline.Connector>
+              <Timeline.Separator width="2px" bg={isEvalComplete ? "black" : "gray.300"} />
+              {isEvalComplete ? renderCompletedIndicator() : renderPendingIndicator()}
+            </Timeline.Connector>
+            <Timeline.Content>
+              <Timeline.Title fontSize="md">Run eval</Timeline.Title>
+              <Timeline.Description>
+                {isEvalComplete ? (
+                  <Badge colorPalette="green" variant="subtle">
+                    Passed
+                  </Badge>
+                ) : (
+                  <Flex align="center" gap="1" fontSize="sm">
+                    <HiOutlineDocumentSearch aria-hidden="true" size={17} />
+                    <Text as="span" fontSize="m">
+                      Quality checking...
+                    </Text>
+                  </Flex>
+                )}
+              </Timeline.Description>
+            </Timeline.Content>
+          </Timeline.Item>
+        )}
 
-        <Timeline.Item>
-          <Timeline.Connector>
-            <Timeline.Separator width="2px" bg="gray.300" />
-            <Timeline.Indicator
-              color="gray.500"
-              bg="transparent"
-              boxSize="5"
-              display="flex"
-              alignItems="center"
-              justifyContent="center"
-            >
-              <HiOutlineClock aria-hidden="true" size={22} />
-            </Timeline.Indicator>
-          </Timeline.Connector>
-          <Timeline.Content>
-            <Timeline.Title>Promote to live</Timeline.Title>
-            <Timeline.Description>
-              <Badge colorPalette="red" variant="subtle">
-                Not promoted
-              </Badge>
-            </Timeline.Description>
-          </Timeline.Content>
-        </Timeline.Item>
+        {stage === "complete" && (
+          <Timeline.Item>
+            <Timeline.Connector>
+              <Timeline.Separator width="2px" bg="gray.300" />
+              {renderCompletedIndicator()}
+            </Timeline.Connector>
+            <Timeline.Content>
+              <Timeline.Title fontSize="md">Promote to live</Timeline.Title>
+              <Timeline.Description>
+                <Badge colorPalette="green" variant="subtle">
+                  Promoted
+                </Badge>
+              </Timeline.Description>
+            </Timeline.Content>
+          </Timeline.Item>
+        )}
       </Timeline.Root>
 
-      <Text color="fg.muted">Staging promoted to live.</Text>
+      {stage === "complete" && (
+        <Text color="fg.muted" fontSize="sm">
+          Staging promoted to live.
+        </Text>
+      )}
     </Stack>
   )
 }
@@ -457,6 +493,7 @@ export default function App() {
   const [previewState, setPreviewState] = useState<PreviewState>("idle")
   const [isRagUpdateOpen, setIsRagUpdateOpen] = useState(false)
   const [hasStartedRagUpdate, setHasStartedRagUpdate] = useState(false)
+  const [ragUpdateStage, setRagUpdateStage] = useState<RagUpdateStage>("idle")
   const [n8nSetupState, setN8nSetupState] = useState<N8nSetupState>("missing")
   const [ragStorageStatus, setRagStorageStatus] =
     useState<RagStorageStatusResponse | null>(null)
@@ -466,6 +503,7 @@ export default function App() {
   const [issueFetchLimit, setIssueFetchLimit] = useState(10)
   const [repo, setRepo] = useState("mockoon/mockoon")
   const [plannedChange, setPlannedChange] = useState("")
+  const ragUpdateTimers = useRef<number[]>([])
   const hasRequiredInput = repo.trim().length > 0 && plannedChange.trim().length > 0
 
   useEffect(() => {
@@ -526,6 +564,12 @@ export default function App() {
     void loadGoldenSetStatus()
   }, [])
 
+  useEffect(() => {
+    return () => {
+      ragUpdateTimers.current.forEach((timer) => window.clearTimeout(timer))
+    }
+  }, [])
+
   const lastUpdatedText =
     ragStorageStatus?.exists && ragStorageStatus.display_date !== null
       ? `Last updated: ${ragStorageStatus.display_date} (${ragStorageStatus.days_ago ?? 0} days ago)`
@@ -541,7 +585,7 @@ export default function App() {
     }
 
     setPreviewState("loading")
-    await new Promise((resolve) => window.setTimeout(resolve, 800))
+    await new Promise((resolve) => window.setTimeout(resolve, 1000))
     setPreviewState("report")
   }
 
@@ -551,6 +595,19 @@ export default function App() {
     if (previewState === "report") {
       setPreviewState("idle")
     }
+  }
+
+  const handleStartRagUpdate = () => {
+    ragUpdateTimers.current.forEach((timer) => window.clearTimeout(timer))
+    ragUpdateTimers.current = []
+
+    setHasStartedRagUpdate(true)
+    setRagUpdateStage("fetching")
+
+    ragUpdateTimers.current.push(
+      window.setTimeout(() => setRagUpdateStage("evaluating"), 2200),
+      window.setTimeout(() => setRagUpdateStage("complete"), 4000),
+    )
   }
 
   return (
@@ -563,9 +620,40 @@ export default function App() {
       <Box px="10" py="8" borderRightWidth="1px" bg="white">
         <Stack gap="6">
           <Box>
-            <Flex align="center" gap="2" mb="3">
+            <Flex align="center" gap="1.5" mb="3">
               <HiOutlineCubeTransparent aria-hidden="true" size={30} />
               <Heading size="2xl">Devbase</Heading>
+              <Tooltip
+                content="check out the author!"
+                placement="bottom"
+                showArrow
+              >
+                <Badge
+                  asChild
+                  bg="orange.300"
+                  color="white"
+                  display="inline-flex"
+                  alignItems="center"
+                  gap="1"
+                  lineHeight="1"
+                  ms="4"
+                  ps="2"
+                  pe="2.5"
+                  py="1"
+                  transform="translateY(2px)"
+                >
+                  <Link
+                    href="https://github.com/micattoc"
+                    target="_blank"
+                    rel="noreferrer"
+                    textDecoration="none"
+                    _hover={{ textDecoration: "none", bg: "orange.600" }}
+                  >
+                    <HiAtSymbol aria-hidden="true" />
+                    micattoc
+                  </Link>
+                </Badge>
+              </Tooltip>
             </Flex>
             <Text color="fg.muted" lineHeight="1.6" mt="1">
               <Highlight
@@ -744,29 +832,29 @@ export default function App() {
                       )}
                     </Stack>
 
-                    <FetchLimitSlider
-                      label="Pull requests"
-                      value={prFetchLimit}
-                      disabled={hasStartedRagUpdate}
-                      onValueChange={setPrFetchLimit}
-                    />
-                    <FetchLimitSlider
-                      label="Issues"
-                      value={issueFetchLimit}
-                      disabled={hasStartedRagUpdate}
-                      onValueChange={setIssueFetchLimit}
-                    />
-
                     {!hasStartedRagUpdate && (
-                      <Button
-                        bg="black"
-                        color="white"
-                        width="fit-content"
-                        mt="2"
-                        onClick={() => setHasStartedRagUpdate(true)}
-                      >
-                        Pull in data
-                      </Button>
+                      <>
+                        <FetchLimitSlider
+                          label="Pull requests"
+                          value={prFetchLimit}
+                          onValueChange={setPrFetchLimit}
+                        />
+                        <FetchLimitSlider
+                          label="Issues"
+                          value={issueFetchLimit}
+                          onValueChange={setIssueFetchLimit}
+                        />
+
+                        <Button
+                          bg="black"
+                          color="white"
+                          width="fit-content"
+                          mt="2"
+                          onClick={handleStartRagUpdate}
+                        >
+                          Pull in data
+                        </Button>
+                      </>
                     )}
                   </Stack>
 
@@ -774,6 +862,7 @@ export default function App() {
                     <RagUpdateTimeline
                       prFetchLimit={prFetchLimit}
                       issueFetchLimit={issueFetchLimit}
+                      stage={ragUpdateStage}
                     />
                   )}
                 </Stack>

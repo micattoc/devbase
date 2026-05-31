@@ -96,6 +96,7 @@ type GoldenSetStatusResponse = {
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000"
+const DEFAULT_FETCH_LIMIT = 10
 
 const fetchLimitMarks = [
   { value: 0, label: "0" },
@@ -746,9 +747,10 @@ export default function App() {
     useState<RagStorageStatusResponse | null>(null)
   const [goldenSetStatus, setGoldenSetStatus] =
     useState<GoldenSetStatusResponse | null>(null)
-  const [prFetchLimit, setPrFetchLimit] = useState(10)
-  const [issueFetchLimit, setIssueFetchLimit] = useState(10)
+  const [prFetchLimit, setPrFetchLimit] = useState(DEFAULT_FETCH_LIMIT)
+  const [issueFetchLimit, setIssueFetchLimit] = useState(DEFAULT_FETCH_LIMIT)
   const [repo, setRepo] = useState("")
+  const [ragUpdateRepo, setRagUpdateRepo] = useState("")
   const [plannedChange, setPlannedChange] = useState("")
   const [reportSections, setReportSections] = useState<ReportSection[]>(defaultSections)
   const [reportSources, setReportSources] = useState<ReportSource[]>(defaultSources)
@@ -756,6 +758,7 @@ export default function App() {
   const hasRequiredInput = repo.trim().length > 0 && plannedChange.trim().length > 0
   const isRagUpdateConfigured =
     goldenSetStatus?.established === true && n8nSetupState === "ready"
+  const hasRagUpdateRepo = ragUpdateRepo.trim().length > 0
 
   useEffect(() => {
     const loadN8nSetupStatus = async () => {
@@ -918,7 +921,7 @@ export default function App() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          repo: repo.trim(),
+          repo: ragUpdateRepo.trim(),
           pr_limit: prFetchLimit,
           issue_limit: issueFetchLimit,
         }),
@@ -1000,6 +1003,9 @@ export default function App() {
     setRagUpdateStage("idle")
     setQualityGateResult(null)
     setGithubIngestResult(null)
+    setRagUpdateRepo(repo.trim())
+    setPrFetchLimit(DEFAULT_FETCH_LIMIT)
+    setIssueFetchLimit(DEFAULT_FETCH_LIMIT)
 
     try {
       const [n8nResponse, goldenSetResponse, ragStorageResponse] = await Promise.all([
@@ -1266,16 +1272,34 @@ export default function App() {
                       )}
                     </Stack>
 
+                    {isRagUpdateConfigured && (
+                      <Stack width="full" gap="3">
+                        <Heading size="md">Repository</Heading>
+                        <InputGroup startAddon="github.com/">
+                          <Input
+                            value={ragUpdateRepo}
+                            onChange={(event) => setRagUpdateRepo(event.target.value)}
+                            fontSize="md"
+                            bg="white"
+                            borderColor="border.emphasized"
+                            placeholder="owner/repo"
+                          />
+                        </InputGroup>
+                      </Stack>
+                    )}
+
                     {isRagUpdateConfigured && !hasStartedRagUpdate && (
                       <>
                         <FetchLimitSlider
                           label="Pull requests"
                           value={prFetchLimit}
+                          disabled={!hasRagUpdateRepo}
                           onValueChange={setPrFetchLimit}
                         />
                         <FetchLimitSlider
                           label="Issues"
                           value={issueFetchLimit}
+                          disabled={!hasRagUpdateRepo}
                           onValueChange={setIssueFetchLimit}
                         />
 
@@ -1284,6 +1308,7 @@ export default function App() {
                           color="white"
                           width="fit-content"
                           mt="2"
+                          disabled={!hasRagUpdateRepo}
                           onClick={handleStartRagUpdate}
                         >
                           Pull in data

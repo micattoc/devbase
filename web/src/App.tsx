@@ -22,7 +22,7 @@ import {
   Timeline,
   Tooltip as ChakraTooltip,
 } from "@chakra-ui/react"
-import { type ReactNode, useState } from "react"
+import { type ReactNode, useEffect, useState } from "react"
 import { FiExternalLink } from "react-icons/fi"
 import {
   HiInformationCircle,
@@ -41,6 +41,11 @@ import {
 const TITLE_WORD_LIMIT = 5
 type PreviewState = "idle" | "loading" | "report"
 type N8nSetupState = "missing" | "ready"
+type N8nSetupResponse = {
+  imported: boolean
+}
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000"
 
 const fetchLimitMarks = [
   { value: 0, label: "0" },
@@ -441,12 +446,32 @@ export default function App() {
   const [previewState, setPreviewState] = useState<PreviewState>("idle")
   const [isRagUpdateOpen, setIsRagUpdateOpen] = useState(false)
   const [hasStartedRagUpdate, setHasStartedRagUpdate] = useState(false)
-  const [n8nSetupState] = useState<N8nSetupState>("missing")
+  const [n8nSetupState, setN8nSetupState] = useState<N8nSetupState>("missing")
   const [prFetchLimit, setPrFetchLimit] = useState(10)
   const [issueFetchLimit, setIssueFetchLimit] = useState(10)
   const [repo, setRepo] = useState("mockoon/mockoon")
   const [plannedChange, setPlannedChange] = useState("")
   const hasRequiredInput = repo.trim().length > 0 && plannedChange.trim().length > 0
+
+  useEffect(() => {
+    const loadN8nSetupStatus = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/n8n-setup`)
+
+        if (!response.ok) {
+          setN8nSetupState("missing")
+          return
+        }
+
+        const payload = (await response.json()) as N8nSetupResponse
+        setN8nSetupState(payload.imported ? "ready" : "missing")
+      } catch {
+        setN8nSetupState("missing")
+      }
+    }
+
+    void loadN8nSetupStatus()
+  }, [])
 
   const handleGenerateReport = async () => {
     if (!hasRequiredInput || previewState === "loading") {
@@ -508,6 +533,7 @@ export default function App() {
               value={repo}
               onChange={(event) => handleInputChange(event.target.value, setRepo)}
               fontSize="md"
+              placeholder="owner/repo"
             />
           </Stack>
 
@@ -528,6 +554,8 @@ export default function App() {
             <Button
               bg="black"
               color="white"
+              width="fit-content"
+              alignSelf="center"
               disabled={!hasRequiredInput || previewState === "loading"}
               onClick={handleGenerateReport}
             >

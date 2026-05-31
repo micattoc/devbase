@@ -30,6 +30,7 @@ class Settings:
     lightrag_backup_dir: Path
 
     n8n_quality_gate_webhook_url: str
+    n8n_setup_status_path: Path
 
     audit_log_path: Path
     ingestion_manifest_path: Path
@@ -64,6 +65,7 @@ def load_settings(require_secrets: bool = True) -> Settings:
         lightrag_staging_dir=Path(os.getenv("LIGHTRAG_STAGING_DIR", "./storage/staging")),
         lightrag_backup_dir=Path(os.getenv("LIGHTRAG_BACKUP_DIR", "./storage/live_backup")),
         n8n_quality_gate_webhook_url=os.getenv("N8N_QUALITY_GATE_WEBHOOK_URL", "http://localhost:5678/webhook/kb-updated"),
+        n8n_setup_status_path=Path(os.getenv("N8N_SETUP_STATUS_PATH", "./.devbase/n8n_setup.json")),
         audit_log_path=Path(os.getenv("AUDIT_LOG_PATH", "./audit.jsonl")),
         ingestion_manifest_path=Path(os.getenv("INGESTION_MANIFEST_PATH", "./ingestion_manifest.json")),
     )

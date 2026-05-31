@@ -5,15 +5,25 @@ from typing import Any
 import httpx
 import requests
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from config import load_settings
+from data.n8n_setup_status import read_n8n_setup_status
 from data.promote_storage import promote_staging_to_live
 from eval.local_eval import run_eval
 from workflows.graph import risk_workflow
 
 
 app = FastAPI(title="Devbase", version="0.1.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 """ Defining request and response bodies for specific actions """
@@ -43,6 +53,12 @@ class QualityGateTriggerResponse(BaseModel):
     message: str
 
 
+class N8nSetupResponse(BaseModel):
+    imported: bool
+    workflow_name: str | None = None
+    imported_at: str | None = None
+
+
 # Test health of REST API
 @app.get("/health")
 async def health() -> dict[str, Any]:
@@ -50,6 +66,18 @@ async def health() -> dict[str, Any]:
         "status": "ok",
         "service": "devbase",
     }
+
+
+@app.get("/n8n-setup", response_model=N8nSetupResponse)
+async def n8n_setup() -> N8nSetupResponse:
+    settings = load_settings(require_secrets=False)
+    status = read_n8n_setup_status(settings.n8n_setup_status_path)
+
+    return N8nSetupResponse(
+        imported=status.imported,
+        workflow_name=status.workflow_name,
+        imported_at=status.imported_at,
+    )
 
 
 # Invoke LightRAG workflow to process user's query for a given repo

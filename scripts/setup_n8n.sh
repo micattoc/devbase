@@ -5,6 +5,7 @@ CONTAINER_NAME="devbase_n8n"
 WORKFLOW_NAME="Devbase Eval Gate"
 WORKFLOW_FILE="/workflows/n8n_quality_gate.json"
 IMPORT_FILE="/tmp/devbase_n8n_quality_gate_import.json"
+STATUS_FILE=".devbase/n8n_setup.json"
 
 echo "Starting n8n..."
 docker compose up -d n8n
@@ -55,6 +56,12 @@ fi
 
 echo "Restarting n8n so webhook registration takes effect..."
 docker compose restart n8n
+
+mkdir -p "$(dirname "${STATUS_FILE}")"
+printf '{\n  "imported": true,\n  "workflow_name": "%s",\n  "imported_at": "%s"\n}\n' \
+  "${WORKFLOW_NAME}" \
+  "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+  > "${STATUS_FILE}"
 
 echo
 echo "n8n setup complete."

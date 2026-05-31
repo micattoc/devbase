@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from config import load_settings
-from data.n8n_setup_status import read_n8n_setup_status
+from scripts.n8n_setup_status import read_n8n_setup_status
 from data.promote_storage import promote_staging_to_live
 from eval.local_eval import run_eval
 from workflows.graph import risk_workflow

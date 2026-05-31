@@ -222,6 +222,7 @@ function cleanReportText(value: string) {
     .replace(/^.*\b(?:README|Code of Conduct|Contributing Guidelines?|CONTRIBUTING\.md)\b.*$/gim, "")
     .replace(/\b((?:Pull Request|PR|Issue)\s+)#?(\d+)\s*\([^)]*\)/gi, "$1#$2")
     .replace(/\b((?:Pull Request|PR|Issue)\s+)#?(\d+)\b/gi, "$1#$2")
+    .replace(/\[?\b(?:PR_REVIEW_COMMENT|ISSUE_COMMENT|PULL_REQUEST|ISSUE)\s+\d+\]?:?/gi, "")
     .replace(/https:\/\/github\.com\/[^\s)\]]+/g, "")
     .replace(/\(\s*\)/g, "")
     .replace(/\*\*/g, "")

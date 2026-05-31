@@ -24,6 +24,8 @@ def build_change_risk_prompt(repo: str, change_description: str) -> str:
             Historical Context:
             - Cite relevant issues, pull requests, or comments from the target repository only ({repo}).
             - Include only GitHub issue or pull request URLs that start with https://github.com/{repo}/issues/ or https://github.com/{repo}/pull/.
+            - When referring to comments, describe them as "a comment in Pull Request #123" or "a comment in Issue #123".
+            - Never mention raw record labels like PR_REVIEW_COMMENT, ISSUE_COMMENT, PULL_REQUEST, or internal comment IDs.
 
             Risk Areas:
             - List concrete parts of the planned change that could break behavior.
@@ -39,6 +41,7 @@ def build_change_risk_prompt(repo: str, change_description: str) -> str:
             - If the available target-repository context is weak, say so.
             - Every historical claim must include a target-repository issue or pull request URL.
             - Include issue or pull request URLs inline with the historical claim only.
+            - Do not expose raw source record IDs or bracketed source labels in the report text.
             - Ignore external dependency changelog links unless a target-repository issue or PR discusses why they matter.
             - Prefer concise, actionable guidance.
             """.strip()

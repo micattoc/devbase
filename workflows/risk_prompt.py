@@ -13,7 +13,8 @@ def build_change_risk_prompt(repo: str, change_description: str) -> str:
             Planned change:
             {change_description}
 
-            Use only retrieved GitHub context from the target repository.
+            Use only retrieved GitHub issue and pull request context from the target repository.
+            Ignore README, Code of Conduct, contributing guides, documentation pages, repository files, and repository root pages.
 
             Return the report in this exact structure:
 
@@ -22,7 +23,7 @@ def build_change_risk_prompt(repo: str, change_description: str) -> str:
 
             Historical Context:
             - Cite relevant issues, pull requests, or comments from the target repository only ({repo}).
-            - Include only GitHub URLs that start with https://github.com/{repo}/.
+            - Include only GitHub issue or pull request URLs that start with https://github.com/{repo}/issues/ or https://github.com/{repo}/pull/.
 
             Risk Areas:
             - List concrete parts of the planned change that could break behavior.
@@ -34,9 +35,10 @@ def build_change_risk_prompt(repo: str, change_description: str) -> str:
             - Do not invent history.
             - Do not call tools.
             - Do not output tool-call placeholders such as [TOOL_CALLS].
+            - Do not cite or summarize README, Code of Conduct, contributing guide, documentation, or repository file content.
             - If the available target-repository context is weak, say so.
-            - Every historical claim must include a target-repository GitHub URL.
-            - Include source URLs inline with the historical claim only.
+            - Every historical claim must include a target-repository issue or pull request URL.
+            - Include issue or pull request URLs inline with the historical claim only.
             - Ignore external dependency changelog links unless a target-repository issue or PR discusses why they matter.
             - Prefer concise, actionable guidance.
             """.strip()

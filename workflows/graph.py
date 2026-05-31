@@ -9,8 +9,8 @@ from langgraph.graph import END, StateGraph
 from rag.graph import query_change_risk
 from security.proxy import screen_query
 
-GITHUB_URL_PATTERN = re.compile(
-    r"https://github\.com/[A-Za-z0-9_.-]+/[^\s)\]]+"
+GITHUB_ISSUE_OR_PULL_PATTERN = re.compile(
+    r"https://github\.com/(?P<repo>[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/(?:issues|pull)/(?P<number>\d+)"
 )
 TOOL_CALL_PLACEHOLDER_PATTERN = re.compile(r"(?:\[TOOL_CALLS\]\s*)+", re.IGNORECASE)
 
@@ -72,9 +72,10 @@ def citation_validator(state: RiskWorkflowState) -> RiskWorkflowState:
     seen: set[str] = set()
     sources: list[str] = []
 
-    # Formats GitHub URLs into sources (ready for API consumption)
-    for match in GITHUB_URL_PATTERN.findall(report):
-        url = match.rstrip(".,;:")
+    # Only issue and pull request URLs are valid UI sources.
+    for match in GITHUB_ISSUE_OR_PULL_PATTERN.finditer(report):
+        path_type = "pull" if "/pull/" in match.group(0) else "issues"
+        url = f"https://github.com/{match.group('repo')}/{path_type}/{match.group('number')}"
         if url not in seen:
             seen.add(url)
             sources.append(url)

@@ -199,6 +199,7 @@ const defaultSources: ReportSource[] = [
 ]
 
 const sectionTitles = ["Summary", "Historical Context", "Risk Areas", "Review Checklist"]
+const validSourceUrlPattern = /^https:\/\/github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/(?:issues|pull)\/\d+/
 
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
@@ -217,7 +218,8 @@ function unwrapCitationLinks(value: string) {
 
 function cleanReportText(value: string) {
   return unwrapCitationLinks(value)
-    .replace(/\bSources?\s*:[\s\S]*$/i, "")
+    .replace(/^\s*(?:#{1,6}\s*)?(?:\*\*)?(?:Sources?|References?)(?:\*\*)?\s*:?\s*[\s\S]*$/im, "")
+    .replace(/^.*\b(?:README|Code of Conduct|Contributing Guidelines?|CONTRIBUTING\.md)\b.*$/gim, "")
     .replace(/\b((?:Pull Request|PR|Issue)\s+)#?(\d+)\s*\([^)]*\)/gi, "$1#$2")
     .replace(/\b((?:Pull Request|PR|Issue)\s+)#?(\d+)\b/gi, "$1#$2")
     .replace(/https:\/\/github\.com\/[^\s)\]]+/g, "")
@@ -854,10 +856,15 @@ export default function App() {
         : payload.report
 
       setReportSections(parseReportSections(reportText))
-      setReportSources(
+      const sourceDetails =
         payload.source_details && payload.source_details.length > 0
-          ? payload.source_details.map(sourceFromDetail)
-          : payload.sources.map(sourceFromUrl),
+          ? payload.source_details
+          : payload.sources.map(sourceFromUrl)
+
+      setReportSources(
+        sourceDetails
+          .filter((source) => validSourceUrlPattern.test(source.url))
+          .map(sourceFromDetail),
       )
       setPreviewState("report")
     } catch (error) {

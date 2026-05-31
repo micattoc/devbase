@@ -1,4 +1,5 @@
 import {
+  Alert,
   Badge,
   Box,
   Button,
@@ -30,6 +31,8 @@ import {
   HiOutlineAdjustments,
   HiOutlineClock,
   HiOutlineCubeTransparent,
+  HiOutlineFolder,
+  HiOutlineCog,
   HiOutlineScale,
   HiOutlineShare,
   HiOutlineTerminal,
@@ -37,6 +40,7 @@ import {
 
 const TITLE_WORD_LIMIT = 5
 type PreviewState = "idle" | "loading" | "report"
+type N8nSetupState = "missing" | "ready"
 
 const fetchLimitMarks = [
   { value: 0, label: "0" },
@@ -305,10 +309,12 @@ function Sources() {
 function FetchLimitSlider({
   label,
   value,
+  disabled = false,
   onValueChange,
 }: {
   label: string
   value: number
+  disabled?: boolean
   onValueChange: (value: number) => void
 }) {
   return (
@@ -319,6 +325,7 @@ function FetchLimitSlider({
       max={20}
       step={1}
       value={[value]}
+      disabled={disabled}
       onValueChange={(details) => onValueChange(details.value[0] ?? 0)}
     >
       <Flex align="center" mb="3">
@@ -365,7 +372,12 @@ function RagUpdateTimeline({
           <Timeline.Content>
             <Timeline.Title>Fetch</Timeline.Title>
             <Timeline.Description>
-              Fetched {prFetchLimit} PRs and {issueFetchLimit} issues from GitHub.
+              <Flex align="center" gap="1">
+                <HiOutlineFolder aria-hidden="true" size={16} />
+                <Text as="span">
+                  Fetched {prFetchLimit} PRs and {issueFetchLimit} issues.
+                </Text>
+              </Flex>
             </Timeline.Description>
           </Timeline.Content>
         </Timeline.Item>
@@ -412,7 +424,7 @@ function RagUpdateTimeline({
           <Timeline.Content>
             <Timeline.Title>Promote to live</Timeline.Title>
             <Timeline.Description>
-              <Badge colorPalette="gray" variant="subtle">
+              <Badge colorPalette="red" variant="subtle">
                 Not promoted
               </Badge>
             </Timeline.Description>
@@ -428,6 +440,8 @@ function RagUpdateTimeline({
 export default function App() {
   const [previewState, setPreviewState] = useState<PreviewState>("idle")
   const [isRagUpdateOpen, setIsRagUpdateOpen] = useState(false)
+  const [hasStartedRagUpdate, setHasStartedRagUpdate] = useState(false)
+  const [n8nSetupState] = useState<N8nSetupState>("missing")
   const [prFetchLimit, setPrFetchLimit] = useState(10)
   const [issueFetchLimit, setIssueFetchLimit] = useState(10)
   const [repo, setRepo] = useState("mockoon/mockoon")
@@ -579,34 +593,65 @@ export default function App() {
               </Drawer.Header>
               <Drawer.Body>
                 <Stack gap="8">
-                  <Text color="fg.muted">
-                    Run the n8n quality gate to evaluate staged RAG data before promoting it to live.
-                  </Text>
+                  <Stack align="center" gap="8">
+                    {n8nSetupState === "ready" ? (
+                      <Alert.Root status="info">
+                        <Alert.Indicator>
+                          <HiOutlineCog />
+                        </Alert.Indicator>
+                        <Stack gap="1">
+                          <Alert.Title>n8n is ready</Alert.Title>
+                          <Alert.Description>
+                            Ensure workflow container is running locally before starting.
+                          </Alert.Description>
+                        </Stack>
+                      </Alert.Root>
+                    ) : (
+                      <Alert.Root status="error">
+                        <Alert.Indicator />
+                        <Stack gap="1">
+                          <Alert.Title>n8n is not setup</Alert.Title>
+                          <Alert.Description>
+                            To evaluate fresh data against golden set, you need to setup n8n workflow locally.
+                          </Alert.Description>
+                        </Stack>
+                      </Alert.Root>
+                    )}
 
-                  <Stack gap="8">
                     <FetchLimitSlider
                       label="Pull requests"
                       value={prFetchLimit}
+                      disabled={hasStartedRagUpdate}
                       onValueChange={setPrFetchLimit}
                     />
                     <FetchLimitSlider
                       label="Issues"
                       value={issueFetchLimit}
+                      disabled={hasStartedRagUpdate}
                       onValueChange={setIssueFetchLimit}
                     />
+
+                    {!hasStartedRagUpdate && (
+                      <Button
+                        bg="black"
+                        color="white"
+                        width="fit-content"
+                        mt="2"
+                        onClick={() => setHasStartedRagUpdate(true)}
+                      >
+                        Pull in data
+                      </Button>
+                    )}
                   </Stack>
 
-                  <RagUpdateTimeline
-                    prFetchLimit={prFetchLimit}
-                    issueFetchLimit={issueFetchLimit}
-                  />
+                  {hasStartedRagUpdate && (
+                    <RagUpdateTimeline
+                      prFetchLimit={prFetchLimit}
+                      issueFetchLimit={issueFetchLimit}
+                    />
+                  )}
                 </Stack>
               </Drawer.Body>
-              <Drawer.Footer>
-                <Button variant="outline" onClick={() => setIsRagUpdateOpen(false)}>
-                  Close
-                </Button>
-              </Drawer.Footer>
               <Drawer.CloseTrigger asChild>
                 <CloseButton size="sm" />
               </Drawer.CloseTrigger>

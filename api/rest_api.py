@@ -9,6 +9,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from config import load_settings
+from data.github_fetcher import fetch_repo_records
+from data.ingest import ingest_records, load_source_index, source_index_path
 from data.rag_storage_status import read_rag_storage_status
 from scripts.n8n_setup_status import read_n8n_setup_status
 from data.promote_storage import promote_staging_to_live
@@ -34,11 +36,36 @@ class RiskRequest(BaseModel):
     change_description: str = Field(min_length=1)
 
 
+class SourceDetail(BaseModel):
+    title: str
+    kind: str
+    state: str
+    url: str
+
+
 class RiskResponse(BaseModel):
     report: str | None = None
-    sources: list[str] = []
+    sources: list[str] = Field(default_factory=list)
+    source_details: list[SourceDetail] = Field(default_factory=list)
     blocked: bool
     block_reason: str | None = None
+
+
+class GitHubIngestRequest(BaseModel):
+    repo: str = Field(default="mockoon/mockoon", min_length=1)
+    pr_limit: int = Field(default=10, ge=0, le=20)
+    issue_limit: int = Field(default=10, ge=0, le=20)
+
+
+class GitHubIngestResponse(BaseModel):
+    repo: str
+    pr_limit: int
+    issue_limit: int
+    fetched: int
+    inserted: int
+    skipped: int
+    inserted_prs: int
+    inserted_issues: int
 
 
 class PromotionResponse(BaseModel):
@@ -122,9 +149,40 @@ async def golden_set_status() -> GoldenSetStatusResponse:
     )
 
 
+# Fetch GitHub data and ingest it into RAG staging
+@app.post("/ingest-github", response_model=GitHubIngestResponse)
+async def ingest_github(request: GitHubIngestRequest) -> GitHubIngestResponse:
+    settings = load_settings(require_secrets=False)
+
+    try:
+        records = fetch_repo_records(
+            repo=request.repo,
+            pr_limit=request.pr_limit,
+            issue_limit=request.issue_limit,
+        )
+        result = await ingest_records(records, settings.ingestion_manifest_path)
+
+        return GitHubIngestResponse(
+            repo=request.repo,
+            pr_limit=request.pr_limit,
+            issue_limit=request.issue_limit,
+            fetched=result["fetched"],
+            inserted=result["inserted"],
+            skipped=result["skipped"],
+            inserted_prs=result["inserted_prs"],
+            inserted_issues=result["inserted_issues"],
+        )
+    except requests.RequestException as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"GitHub fetch failed: {str(exc)}",
+        ) from exc
+
+
 # Invoke LightRAG workflow to process user's query for a given repo
 @app.post("/change-risk", response_model=RiskResponse)
 async def change_risk(request: RiskRequest) -> RiskResponse:
+    settings = load_settings(require_secrets=False)
     result = await risk_workflow.ainvoke(
         {
             "repo": request.repo,
@@ -132,9 +190,25 @@ async def change_risk(request: RiskRequest) -> RiskResponse:
         }
     )
 
+    source_urls = result.get("sources", [])
+    source_index = load_source_index(source_index_path(settings.ingestion_manifest_path))
+    source_details = [
+        SourceDetail(
+            title=source_index.get(url, {}).get("title", ""),
+            kind=source_index.get(url, {}).get(
+                "kind",
+                "pull_request" if "/pull/" in url else "issue",
+            ),
+            state=source_index.get(url, {}).get("state", "open"),
+            url=url,
+        )
+        for url in source_urls
+    ]
+
     return RiskResponse(
         report=result.get("report"),
-        sources=result.get("sources", []),
+        sources=source_urls,
+        source_details=source_details,
         blocked=result.get("is_blocked", False),
         block_reason=result.get("block_reason"),
     )
@@ -186,11 +260,14 @@ async def trigger_quality_gate() -> QualityGateTriggerResponse:
         
         payload = response.json()
 
+        if isinstance(payload, list):
+            payload = payload[0] if payload else {}
+
         return QualityGateTriggerResponse(
             triggered=True,
             webhook_url=settings.n8n_quality_gate_webhook_url,
-            status=payload.get("status"),
-            message=payload.get("message"),
+            status=str(payload.get("status", "unknown")),
+            message=str(payload.get("message", "")),
         )
     
     except HTTPException:

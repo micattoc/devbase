@@ -48,8 +48,41 @@ const TITLE_WORD_LIMIT = 5
 type PreviewState = "idle" | "loading" | "report"
 type N8nSetupState = "missing" | "ready"
 type RagUpdateStage = "idle" | "fetching" | "evaluating" | "complete"
+type ReportSection = {
+  title: string
+  value: string
+}
+type ReportSource = {
+  title: string
+  kind: "issue" | "pull_request"
+  state: "open" | "closed"
+  url: string
+}
 type N8nSetupResponse = {
   imported: boolean
+}
+type RiskResponse = {
+  report: string | null
+  sources: string[]
+  source_details?: ReportSource[]
+  blocked: boolean
+  block_reason: string | null
+}
+type QualityGateTriggerResponse = {
+  triggered: boolean
+  webhook_url: string
+  status: string
+  message: string
+}
+type GitHubIngestResponse = {
+  repo: string
+  pr_limit: number
+  issue_limit: number
+  fetched: number
+  inserted: number
+  skipped: number
+  inserted_prs: number
+  inserted_issues: number
 }
 type RagStorageStatusResponse = {
   exists: boolean
@@ -113,7 +146,7 @@ function Tooltip({
   )
 }
 
-const sections = [
+const defaultSections: ReportSection[] = [
   {
     title: "Summary",
     value:
@@ -136,7 +169,7 @@ const sections = [
   },
 ]
 
-const sources = [
+const defaultSources: ReportSource[] = [
   {
     title: "Request body parsing regression",
     kind: "issue",
@@ -165,10 +198,73 @@ const sources = [
   },
 ]
 
-function ReportSegments() {
+function parseReportSections(report: string | null): ReportSection[] {
+  if (!report?.trim()) {
+    return defaultSections
+  }
+
+  const sectionTitles = ["Summary", "Historical Context", "Risk Areas", "Review Checklist"]
+  const parsedSections = sectionTitles.map((title, index) => {
+    const nextTitle = sectionTitles[index + 1]
+    const pattern = nextTitle
+      ? new RegExp(`${title}:?\\s*([\\s\\S]*?)(?=${nextTitle}:?\\s*)`, "i")
+      : new RegExp(`${title}:?\\s*([\\s\\S]*)`, "i")
+    const match = report.match(pattern)
+
+    return {
+      title,
+      value: match?.[1]?.trim() || "",
+    }
+  })
+
+  if (parsedSections.some((section) => section.value.length > 0)) {
+    return parsedSections.map((section) => ({
+      title: section.title,
+      value: section.value || "No details returned for this section.",
+    }))
+  }
+
+  return [
+    { title: "Summary", value: report },
+    { title: "Historical Context", value: "No separate historical context returned." },
+    { title: "Risk Areas", value: "No separate risk areas returned." },
+    { title: "Review Checklist", value: "No separate review checklist returned." },
+  ]
+}
+
+function sourceFromUrl(url: string): ReportSource {
+  const isPullRequest = url.includes("/pull/")
+  const number = url.match(/\/(?:issues|pull)\/(\d+)/)?.[1]
+
+  return {
+    title: isPullRequest
+      ? `Referenced pull request${number ? ` #${number}` : ""}`
+      : `Referenced issue${number ? ` #${number}` : ""}`,
+    kind: isPullRequest ? "pull_request" : "issue",
+    state: "open",
+    url,
+  }
+}
+
+function sourceFromDetail(source: ReportSource): ReportSource {
+  if (source.title.trim().length === 0) {
+    return {
+      ...sourceFromUrl(source.url),
+      state: source.state,
+    }
+  }
+
+  return source
+}
+
+function ReportSegments({ sections }: { sections: ReportSection[] }) {
   const [selectedSection, setSelectedSection] = useState(sections[0].title)
   const activeSection =
     sections.find((section) => section.title === selectedSection) ?? sections[0]
+
+  useEffect(() => {
+    setSelectedSection(sections[0].title)
+  }, [sections])
 
   return (
     <Stack gap="0">
@@ -217,7 +313,7 @@ function ReportSegments() {
   )
 }
 
-function Sources() {
+function Sources({ sources }: { sources: ReportSource[] }) {
   const openPullRequests = sources.filter(
     (source) => source.kind === "pull_request" && source.state === "open",
   )
@@ -383,13 +479,36 @@ function RagUpdateTimeline({
   prFetchLimit,
   issueFetchLimit,
   stage,
+  result,
+  ingestResult,
 }: {
   prFetchLimit: number
   issueFetchLimit: number
   stage: RagUpdateStage
+  result: QualityGateTriggerResponse | null
+  ingestResult: GitHubIngestResponse | null
 }) {
   const isFetchComplete = stage === "evaluating" || stage === "complete"
   const isEvalComplete = stage === "complete"
+  const gatePassed = result?.status?.toLowerCase() === "passed"
+  const insertedPrs = ingestResult?.inserted_prs ?? 0
+  const insertedIssues = ingestResult?.inserted_issues ?? 0
+  const hasNewGitHubData = insertedPrs + insertedIssues > 0
+  const fetchCompleteText = (() => {
+    if (!hasNewGitHubData) {
+      return "Data already integrated"
+    }
+
+    if (insertedPrs > 0 && insertedIssues > 0) {
+      return `${insertedPrs} new PRs and ${insertedIssues} issues`
+    }
+
+    if (insertedPrs > 0) {
+      return `${insertedPrs} new PRs`
+    }
+
+    return `${insertedIssues} new issues`
+  })()
 
   const renderCompletedIndicator = () => (
     <Timeline.Indicator
@@ -437,7 +556,9 @@ function RagUpdateTimeline({
                 )}
                 <Text as="span" fontSize="m">
                   {isFetchComplete
-                    ? `${prFetchLimit} PRs and ${issueFetchLimit} issues`
+                    ? ingestResult
+                      ? fetchCompleteText
+                      : `${prFetchLimit} PRs and ${issueFetchLimit} issues`
                     : "Fetching from GitHub..."}
                 </Text>
               </Flex>
@@ -445,7 +566,7 @@ function RagUpdateTimeline({
           </Timeline.Content>
         </Timeline.Item>
 
-        {(stage === "evaluating" || stage === "complete") && (
+        {hasNewGitHubData && (stage === "evaluating" || stage === "complete") && (
           <Timeline.Item>
             <Timeline.Connector>
               <Timeline.Separator width="2px" bg={isEvalComplete ? "black" : "gray.300"} />
@@ -455,8 +576,8 @@ function RagUpdateTimeline({
               <Timeline.Title fontSize="md">Run eval</Timeline.Title>
               <Timeline.Description>
                 {isEvalComplete ? (
-                  <Badge colorPalette="green" variant="subtle">
-                    <Text fontSize="m">Passed</Text>
+                  <Badge colorPalette={gatePassed ? "green" : "red"} variant="subtle">
+                    <Text fontSize="m">{gatePassed ? "Passed" : "Failed"}</Text>
                   </Badge>
                 ) : (
                   <Flex align="center" gap="1" fontSize="sm">
@@ -471,17 +592,17 @@ function RagUpdateTimeline({
           </Timeline.Item>
         )}
 
-        {stage === "complete" && (
+        {hasNewGitHubData && stage === "complete" && (
           <Timeline.Item>
             <Timeline.Connector>
               <Timeline.Separator width="2px" bg="gray.300" />
               {renderCompletedIndicator()}
             </Timeline.Connector>
             <Timeline.Content>
-              <Timeline.Title fontSize="md">Promote to live</Timeline.Title>
+              <Timeline.Title fontSize="md">Integrate RAG</Timeline.Title>
               <Timeline.Description>
-                <Badge colorPalette="green" variant="subtle">
-                  Promoted
+                <Badge colorPalette={gatePassed ? "green" : "red"} variant="subtle">
+                  {gatePassed ? "Data integrated" : "Failed to integrate"}
                 </Badge>
               </Timeline.Description>
             </Timeline.Content>
@@ -489,9 +610,9 @@ function RagUpdateTimeline({
         )}
       </Timeline.Root>
 
-      {stage === "complete" && (
+      {hasNewGitHubData && stage === "complete" && (
         <Text color="fg.muted" fontSize="sm">
-          Staging promoted to live.
+          {result?.message || "Quality gate completed."}
         </Text>
       )}
     </Stack>
@@ -503,6 +624,10 @@ export default function App() {
   const [isRagUpdateOpen, setIsRagUpdateOpen] = useState(false)
   const [hasStartedRagUpdate, setHasStartedRagUpdate] = useState(false)
   const [ragUpdateStage, setRagUpdateStage] = useState<RagUpdateStage>("idle")
+  const [qualityGateResult, setQualityGateResult] =
+    useState<QualityGateTriggerResponse | null>(null)
+  const [githubIngestResult, setGithubIngestResult] =
+    useState<GitHubIngestResponse | null>(null)
   const [n8nSetupState, setN8nSetupState] = useState<N8nSetupState>("missing")
   const [ragStorageStatus, setRagStorageStatus] =
     useState<RagStorageStatusResponse | null>(null)
@@ -512,6 +637,8 @@ export default function App() {
   const [issueFetchLimit, setIssueFetchLimit] = useState(10)
   const [repo, setRepo] = useState("mockoon/mockoon")
   const [plannedChange, setPlannedChange] = useState("")
+  const [reportSections, setReportSections] = useState<ReportSection[]>(defaultSections)
+  const [reportSources, setReportSources] = useState<ReportSource[]>(defaultSources)
   const ragUpdateTimers = useRef<number[]>([])
   const hasRequiredInput = repo.trim().length > 0 && plannedChange.trim().length > 0
   const isRagUpdateConfigured =
@@ -581,13 +708,17 @@ export default function App() {
     }
   }, [])
 
+  const ragUpdatedSuffix =
+    ragStorageStatus?.days_ago === 0
+      ? "today"
+      : `${ragStorageStatus?.days_ago ?? 0} days ago`
   const lastUpdatedText =
     ragStorageStatus?.exists && ragStorageStatus.display_date !== null
-      ? `Last updated: ${ragStorageStatus.display_date} (${ragStorageStatus.days_ago ?? 0} days ago)`
+      ? `Last updated: ${ragStorageStatus.display_date} (${ragUpdatedSuffix})`
       : "Last updated: Not available"
   const ragLastUpdatedText =
     ragStorageStatus?.exists && ragStorageStatus.display_date !== null
-      ? `RAG last updated: ${ragStorageStatus.display_date} (${ragStorageStatus.days_ago ?? 0} days ago)`
+      ? `RAG last updated: ${ragStorageStatus.display_date} (${ragUpdatedSuffix})`
       : "RAG last updated: Not available"
 
   const handleGenerateReport = async () => {
@@ -596,8 +727,51 @@ export default function App() {
     }
 
     setPreviewState("loading")
-    await new Promise((resolve) => window.setTimeout(resolve, 1000))
-    setPreviewState("report")
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/change-risk`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          repo: repo.trim(),
+          change_description: plannedChange.trim(),
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`Risk report request failed with HTTP ${response.status}`)
+      }
+
+      const payload = (await response.json()) as RiskResponse
+      const reportText = payload.blocked
+        ? payload.block_reason || "The report was blocked."
+        : payload.report
+
+      setReportSections(parseReportSections(reportText))
+      setReportSources(
+        payload.source_details && payload.source_details.length > 0
+          ? payload.source_details.map(sourceFromDetail)
+          : payload.sources.map(sourceFromUrl),
+      )
+      setPreviewState("report")
+    } catch (error) {
+      setReportSections([
+        {
+          title: "Summary",
+          value:
+            error instanceof Error
+              ? error.message
+              : "Unable to generate the risk report.",
+        },
+        { title: "Historical Context", value: "No report returned." },
+        { title: "Risk Areas", value: "No report returned." },
+        { title: "Review Checklist", value: "No report returned." },
+      ])
+      setReportSources([])
+      setPreviewState("report")
+    }
   }
 
   const handleInputChange = (nextValue: string, updateValue: (value: string) => void) => {
@@ -605,20 +779,99 @@ export default function App() {
 
     if (previewState === "report") {
       setPreviewState("idle")
+      setReportSections(defaultSections)
+      setReportSources(defaultSources)
     }
   }
 
-  const handleStartRagUpdate = () => {
+  const handleStartRagUpdate = async () => {
     ragUpdateTimers.current.forEach((timer) => window.clearTimeout(timer))
     ragUpdateTimers.current = []
 
     setHasStartedRagUpdate(true)
     setRagUpdateStage("fetching")
+    setQualityGateResult(null)
+    setGithubIngestResult(null)
 
-    ragUpdateTimers.current.push(
-      window.setTimeout(() => setRagUpdateStage("evaluating"), 2200),
-      window.setTimeout(() => setRagUpdateStage("complete"), 4000),
-    )
+    try {
+      const ingestResponse = await fetch(`${API_BASE_URL}/ingest-github`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          repo: repo.trim(),
+          pr_limit: prFetchLimit,
+          issue_limit: issueFetchLimit,
+        }),
+      })
+
+      if (!ingestResponse.ok) {
+        throw new Error(`GitHub ingestion failed with HTTP ${ingestResponse.status}`)
+      }
+
+      const ingestPayload = (await ingestResponse.json()) as GitHubIngestResponse
+      setGithubIngestResult(ingestPayload)
+
+      if (ingestPayload.inserted_prs + ingestPayload.inserted_issues === 0) {
+        setRagUpdateStage("complete")
+        return
+      }
+    } catch (error) {
+      setQualityGateResult({
+        triggered: false,
+        webhook_url: "",
+        status: "failed",
+        message:
+          error instanceof Error
+            ? error.message
+            : "GitHub ingestion failed.",
+      })
+      setRagUpdateStage("complete")
+      return
+    }
+
+    setRagUpdateStage("evaluating")
+
+    const triggerRequest = fetch(`${API_BASE_URL}/trigger-quality-gate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+
+    try {
+      const response = await triggerRequest
+
+      if (!response.ok) {
+        throw new Error(`Quality gate request failed with HTTP ${response.status}`)
+      }
+
+      const payload = (await response.json()) as QualityGateTriggerResponse
+      setQualityGateResult(payload)
+    } catch (error) {
+      setQualityGateResult({
+        triggered: false,
+        webhook_url: "",
+        status: "failed",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Quality gate request failed.",
+      })
+    }
+
+    setRagUpdateStage("complete")
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/rag-storage-status`)
+
+      if (response.ok) {
+        setRagStorageStatus((await response.json()) as RagStorageStatusResponse)
+      }
+    } catch {
+      // Keep the previous freshness value if the refresh endpoint is unavailable.
+    }
   }
 
   return (
@@ -883,6 +1136,8 @@ export default function App() {
                       prFetchLimit={prFetchLimit}
                       issueFetchLimit={issueFetchLimit}
                       stage={ragUpdateStage}
+                      result={qualityGateResult}
+                      ingestResult={githubIngestResult}
                     />
                   )}
                 </Stack>
@@ -950,8 +1205,8 @@ export default function App() {
 
           {previewState === "report" && (
             <>
-              <ReportSegments />
-              <Sources />
+              <ReportSegments sections={reportSections} />
+              <Sources sources={reportSources} />
             </>
           )}
         </Stack>

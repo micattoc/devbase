@@ -72,7 +72,12 @@ def _labels(item: dict[str, Any]) -> list[str]:
     return [label["name"] for label in item.get("labels", [])]
 
 
-def fetch_issue_comments(repo: str, issue_number: int, max_items: int = 20) -> list[dict[str, Any]]:
+def fetch_issue_comments(
+    repo: str,
+    issue_number: int,
+    max_items: int = 20,
+    issue_state: str = "open",
+) -> list[dict[str, Any]]:
     """Get all comments for a given issue."""
 
     url = f"{GITHUB_API_BASE}/repos/{repo}/issues/{issue_number}/comments"
@@ -84,6 +89,7 @@ def fetch_issue_comments(repo: str, issue_number: int, max_items: int = 20) -> l
             "repo": repo,
             "id": comment["id"],
             "title": f"Comment on issue #{issue_number}",
+            "state": issue_state,
             "body": comment.get("body") or "",
             "url": comment["html_url"],
             "created_at": comment["created_at"],
@@ -123,6 +129,7 @@ def fetch_repo_issues(repo: str, max_items: int = 25) -> list[dict[str, Any]]:
                 "repo": repo,
                 "id": item["number"],
                 "title": item.get("title") or "",
+                "state": item["state"],
                 "body": item.get("body") or "",
                 "url": item["html_url"],
                 "created_at": item["created_at"],
@@ -134,7 +141,14 @@ def fetch_repo_issues(repo: str, max_items: int = 25) -> list[dict[str, Any]]:
 
             # Fetch comments of issues in repo
             if item.get("comments", 0) > 0:
-                issues.extend(fetch_issue_comments(repo, item["number"], max_items=10))
+                issues.extend(
+                    fetch_issue_comments(
+                        repo,
+                        item["number"],
+                        max_items=10,
+                        issue_state=item["state"],
+                    )
+                )
 
             if len(issues) >= max_items:
                 break
@@ -144,7 +158,12 @@ def fetch_repo_issues(repo: str, max_items: int = 25) -> list[dict[str, Any]]:
     return issues
 
 
-def fetch_pr_review_comments(repo: str, pull_number: int, max_items: int = 20) -> list[dict[str, Any]]:
+def fetch_pr_review_comments(
+    repo: str,
+    pull_number: int,
+    max_items: int = 20,
+    pr_state: str = "open",
+) -> list[dict[str, Any]]:
     """Get all comments from a given PR."""
 
     url = f"{GITHUB_API_BASE}/repos/{repo}/pulls/{pull_number}/comments"
@@ -156,6 +175,7 @@ def fetch_pr_review_comments(repo: str, pull_number: int, max_items: int = 20) -
             "repo": repo,
             "id": comment["id"],
             "title": f"Review comment on PR #{pull_number}",
+            "state": pr_state,
             "body": comment.get("body") or "",
             "url": comment["html_url"],
             "created_at": comment["created_at"],
@@ -178,6 +198,7 @@ def fetch_repo_prs(repo: str, max_items: int = 25) -> list[dict[str, Any]]:
             "repo": repo,
             "id": item["number"],
             "title": item.get("title") or "",
+            "state": item["state"],
             "body": item.get("body") or "",
             "url": item["html_url"],
             "created_at": item["created_at"],
@@ -188,7 +209,14 @@ def fetch_repo_prs(repo: str, max_items: int = 25) -> list[dict[str, Any]]:
         prs.append(pr)
         
         # Add comments of PR while keeping store as a flat list
-        prs.extend(fetch_pr_review_comments(repo, item["number"], max_items=10))
+        prs.extend(
+            fetch_pr_review_comments(
+                repo,
+                item["number"],
+                max_items=10,
+                pr_state=item["state"],
+            )
+        )
 
     return prs
 
@@ -208,3 +236,21 @@ def fetch_repo_readme(repo: str) -> dict[str, Any]:
         "updated_at": None,
         "labels": [],
     }
+
+
+def fetch_repo_records(
+    repo: str,
+    pr_limit: int = 10,
+    issue_limit: int = 10,
+    include_readme: bool = True,
+) -> list[dict[str, Any]]:
+    """Fetch the GitHub records used to refresh RAG staging data."""
+
+    records: list[dict[str, Any]] = []
+    records.extend(fetch_repo_issues(repo, max_items=issue_limit))
+    records.extend(fetch_repo_prs(repo, max_items=pr_limit))
+
+    if include_readme:
+        records.append(fetch_repo_readme(repo))
+
+    return records

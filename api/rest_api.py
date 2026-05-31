@@ -1,5 +1,6 @@
 """Exposing Devbase as a FastAPI REST API."""
 
+import re
 from typing import Any
 
 import httpx
@@ -9,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from config import load_settings
-from data.github_fetcher import fetch_repo_records
+from data.github_fetcher import fetch_github_source_detail, fetch_repo_records
 from data.ingest import ingest_records, load_source_index, source_index_path
 from data.rag_storage_status import read_rag_storage_status
 from scripts.n8n_setup_status import read_n8n_setup_status
@@ -27,6 +28,11 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+
+GITHUB_SOURCE_PATTERN = re.compile(
+    r"https://github\.com/(?P<repo>[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/(?:issues|pull)/(?P<number>\d+)"
 )
 
 
@@ -99,6 +105,50 @@ class GoldenSetStatusResponse(BaseModel):
     established: bool
     path: str
     case_count: int
+
+
+def build_source_detail(url: str, source_index: dict[str, dict[str, str]]) -> SourceDetail:
+    """Resolve cited GitHub source metadata for the UI."""
+
+    indexed_source = source_index.get(url)
+
+    indexed_title = indexed_source.get("title", "") if indexed_source else ""
+
+    if indexed_source and not indexed_title.startswith(("Comment on ", "Review comment on ")):
+        return SourceDetail(
+            title=indexed_title,
+            kind=indexed_source.get("kind", "pull_request" if "/pull/" in url else "issue"),
+            state=indexed_source.get("state", "open"),
+            url=url,
+        )
+
+    match = GITHUB_SOURCE_PATTERN.search(url)
+
+    if match:
+        kind = "pull_request" if "/pull/" in url else "issue"
+
+        try:
+            detail = fetch_github_source_detail(
+                repo=match.group("repo"),
+                kind=kind,
+                number=match.group("number"),
+            )
+
+            return SourceDetail(
+                title=detail["title"],
+                kind=detail["kind"],
+                state=detail["state"],
+                url=url,
+            )
+        except requests.RequestException:
+            pass
+
+    return SourceDetail(
+        title="",
+        kind="pull_request" if "/pull/" in url else "issue",
+        state="open",
+        url=url,
+    )
 
 
 # Test health of REST API
@@ -192,18 +242,7 @@ async def change_risk(request: RiskRequest) -> RiskResponse:
 
     source_urls = result.get("sources", [])
     source_index = load_source_index(source_index_path(settings.ingestion_manifest_path))
-    source_details = [
-        SourceDetail(
-            title=source_index.get(url, {}).get("title", ""),
-            kind=source_index.get(url, {}).get(
-                "kind",
-                "pull_request" if "/pull/" in url else "issue",
-            ),
-            state=source_index.get(url, {}).get("state", "open"),
-            url=url,
-        )
-        for url in source_urls
-    ]
+    source_details = [build_source_detail(url, source_index) for url in source_urls]
 
     return RiskResponse(
         report=result.get("report"),

@@ -221,20 +221,17 @@ def fetch_repo_prs(repo: str, max_items: int = 25) -> list[dict[str, Any]]:
     return prs
 
 
-def fetch_repo_readme(repo: str) -> dict[str, Any]:
-    url = f"{GITHUB_API_BASE}/repos/{repo}/readme"
-    readme = _get(url)
+def fetch_github_source_detail(repo: str, kind: str, number: str) -> dict[str, str]:
+    """Fetch title and state for a cited GitHub issue or pull request."""
+
+    endpoint = "pulls" if kind == "pull_request" else "issues"
+    item = _get(f"{GITHUB_API_BASE}/repos/{repo}/{endpoint}/{number}")
 
     return {
-        "type": "readme",
-        "repo": repo,
-        "id": "README",
-        "title": "README",
-        "body": requests.get(readme["download_url"], timeout=30).text,
-        "url": readme["html_url"],
-        "created_at": None,
-        "updated_at": None,
-        "labels": [],
+        "title": item.get("title") or "",
+        "kind": kind,
+        "state": item.get("state") or "open",
+        "url": item["html_url"],
     }
 
 
@@ -242,15 +239,11 @@ def fetch_repo_records(
     repo: str,
     pr_limit: int = 10,
     issue_limit: int = 10,
-    include_readme: bool = True,
 ) -> list[dict[str, Any]]:
     """Fetch the GitHub records used to refresh RAG staging data."""
 
     records: list[dict[str, Any]] = []
     records.extend(fetch_repo_issues(repo, max_items=issue_limit))
     records.extend(fetch_repo_prs(repo, max_items=pr_limit))
-
-    if include_readme:
-        records.append(fetch_repo_readme(repo))
 
     return records

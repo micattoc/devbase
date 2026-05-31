@@ -21,7 +21,7 @@ def build_change_risk_prompt(repo: str, change_description: str) -> str:
             A concise 2-4 sentence explanation of the likely risk.
 
             Historical Context:
-            - Cite relevant issues, pull requests, comments, or README details from the target repository only ({repo}).
+            - Cite relevant issues, pull requests, or comments from the target repository only ({repo}).
             - Include only GitHub URLs that start with https://github.com/{repo}/.
 
             Risk Areas:
@@ -30,14 +30,13 @@ def build_change_risk_prompt(repo: str, change_description: str) -> str:
             Review Checklist:
             - List practical checks a reviewer or implementer should perform.
 
-            Sources:
-            - List every target-repository ({repo}) GitHub URL used in the report.
-            - Do not list repository URLs that are not from the target repo ({repo})
-
             Rules:
             - Do not invent history.
+            - Do not call tools.
+            - Do not output tool-call placeholders such as [TOOL_CALLS].
             - If the available target-repository context is weak, say so.
             - Every historical claim must include a target-repository GitHub URL.
+            - Include source URLs inline with the historical claim only.
             - Ignore external dependency changelog links unless a target-repository issue or PR discusses why they matter.
             - Prefer concise, actionable guidance.
             """.strip()

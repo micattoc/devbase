@@ -198,24 +198,81 @@ const defaultSources: ReportSource[] = [
   },
 ]
 
+const sectionTitles = ["Summary", "Historical Context", "Risk Areas", "Review Checklist"]
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
+function unwrapCitationLinks(value: string) {
+  return value
+    .replace(
+      /\[\s*((?:Pull Request|PR|Issue)\s+)#?(\d+)\s*\]\s*\([^)]*\)/gi,
+      "$1#$2",
+    )
+    .replace(/\[\s*#?(\d+)\s*\]\s*\([^)]*\)/g, "#$1")
+    .replace(/\[\s*((?:Pull Request|PR|Issue)\s+)#?(\d+)\s*\]/gi, "$1#$2")
+    .replace(/\[\s*#?(\d+)\s*\]/g, "#$1")
+}
+
+function cleanReportText(value: string) {
+  return unwrapCitationLinks(value)
+    .replace(/\bSources?\s*:[\s\S]*$/i, "")
+    .replace(/\b((?:Pull Request|PR|Issue)\s+)#?(\d+)\s*\([^)]*\)/gi, "$1#$2")
+    .replace(/\b((?:Pull Request|PR|Issue)\s+)#?(\d+)\b/gi, "$1#$2")
+    .replace(/https:\/\/github\.com\/[^\s)\]]+/g, "")
+    .replace(/\(\s*\)/g, "")
+    .replace(/\*\*/g, "")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/^#{1,6}\s*/gm, "")
+    .replace(/^\s*[-*]\s*(?=(Summary|Historical Context|Risk Areas|Review Checklist)\b)/gim, "")
+    .replace(/\s+-\s+/g, "\n- ")
+    .replace(/\n(- .+?)(?=\n- |\n\n|$)/g, "\n$1\n")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/.*/s, (text) => unwrapCitationLinks(text))
+    .trim()
+}
+
+function sectionHeaderPattern(title: string) {
+  return new RegExp(
+    `^\\s*(?:#{1,6}\\s*)?(?:\\*\\*)?${escapeRegExp(title)}(?:\\*\\*)?\\s*:?.*$`,
+    "im",
+  )
+}
+
 function parseReportSections(report: string | null): ReportSection[] {
   if (!report?.trim()) {
     return defaultSections
   }
 
-  const sectionTitles = ["Summary", "Historical Context", "Risk Areas", "Review Checklist"]
-  const parsedSections = sectionTitles.map((title, index) => {
-    const nextTitle = sectionTitles[index + 1]
-    const pattern = nextTitle
-      ? new RegExp(`${title}:?\\s*([\\s\\S]*?)(?=${nextTitle}:?\\s*)`, "i")
-      : new RegExp(`${title}:?\\s*([\\s\\S]*)`, "i")
-    const match = report.match(pattern)
+  const sectionMatches = sectionTitles
+    .map((title) => {
+      const match = sectionHeaderPattern(title).exec(report)
 
-    return {
-      title,
-      value: match?.[1]?.trim() || "",
-    }
+      return match
+        ? {
+            title,
+            start: match.index,
+            end: match.index + match[0].length,
+          }
+        : null
+    })
+    .filter((match): match is { title: string; start: number; end: number } => match !== null)
+    .sort((a, b) => a.start - b.start)
+
+  const sectionValues = new Map<string, string>()
+
+  sectionMatches.forEach((match, index) => {
+    const nextMatch = sectionMatches[index + 1]
+    const rawValue = report.slice(match.end, nextMatch?.start ?? report.length)
+    sectionValues.set(match.title, cleanReportText(rawValue))
   })
+
+  const parsedSections = sectionTitles.map((title) => ({
+    title,
+    value: sectionValues.get(title) ?? "",
+  }))
 
   if (parsedSections.some((section) => section.value.length > 0)) {
     return parsedSections.map((section) => ({
@@ -225,7 +282,7 @@ function parseReportSections(report: string | null): ReportSection[] {
   }
 
   return [
-    { title: "Summary", value: report },
+    { title: "Summary", value: cleanReportText(report) },
     { title: "Historical Context", value: "No separate historical context returned." },
     { title: "Risk Areas", value: "No separate risk areas returned." },
     { title: "Review Checklist", value: "No separate review checklist returned." },
@@ -255,6 +312,49 @@ function sourceFromDetail(source: ReportSource): ReportSource {
   }
 
   return source
+}
+
+function ReportText({ value }: { value: string }) {
+  const lines = value.split("\n").filter((line) => line.trim().length > 0)
+
+  return (
+    <Stack gap="3">
+      {lines.map((line, index) => {
+        const trimmedLine = line.trim()
+        const isBullet = trimmedLine.startsWith("- ")
+        const text = isBullet ? trimmedLine.slice(2) : trimmedLine
+        const colonIndex = isBullet ? text.indexOf(":") : -1
+        const hasBulletLead = colonIndex > 0
+
+        return (
+          <Flex key={`${line}-${index}`} align="start" gap="3">
+            {isBullet && (
+              <Box
+                as="span"
+                mt="3"
+                boxSize="6px"
+                borderRadius="full"
+                bg="fg.muted"
+                flexShrink={0}
+              />
+            )}
+            <Text color="fg.muted" lineHeight="1.7">
+              {hasBulletLead ? (
+                <>
+                  <Text as="span" fontWeight="semibold" color="fg">
+                    {text.slice(0, colonIndex + 1)}
+                  </Text>{" "}
+                  {text.slice(colonIndex + 1).trimStart()}
+                </>
+              ) : (
+                text
+              )}
+            </Text>
+          </Flex>
+        )
+      })}
+    </Stack>
+  )
 }
 
 function ReportSegments({ sections }: { sections: ReportSection[] }) {
@@ -305,15 +405,15 @@ function ReportSegments({ sections }: { sections: ReportSection[] }) {
         mt="-1px"
       >
         
-        <Text color="fg.muted" lineHeight="1.7">
-          {activeSection.value}
-        </Text>
+        <ReportText value={activeSection.value} />
       </Box>
     </Stack>
   )
 }
 
 function Sources({ sources }: { sources: ReportSource[] }) {
+  const pullRequestSources = sources.filter((source) => source.kind === "pull_request")
+  const issueSources = sources.filter((source) => source.kind === "issue")
   const openPullRequests = sources.filter(
     (source) => source.kind === "pull_request" && source.state === "open",
   )
@@ -381,53 +481,57 @@ function Sources({ sources }: { sources: ReportSource[] }) {
 
   return (
     <Stack gap="6">
-      <Box bg="white" borderWidth="1px" borderRadius="lg" borderColor="blue.subtle" p="5">
-        <Flex align="center" gap="2" mb="6">
-          <GitHubIcon />
-          <Heading size="md">Pull Requests</Heading>
-        </Flex>
-        <Grid templateColumns="minmax(0, 1fr) auto minmax(0, 1fr)" gap="6">
-          <Stack gap="3">
-            {renderStatusBadge("Open", openPullRequests.length)}
-            <Stack as="ul" gap="3" listStyleType="none" m="0" p="0">
-              {openPullRequests.map(renderSource)}
+      {pullRequestSources.length > 0 && (
+        <Box bg="white" borderWidth="1px" borderRadius="lg" borderColor="blue.subtle" p="5">
+          <Flex align="center" gap="2" mb="6">
+            <GitHubIcon />
+            <Heading size="md">Pull Requests</Heading>
+          </Flex>
+          <Grid templateColumns="minmax(0, 1fr) auto minmax(0, 1fr)" gap="6">
+            <Stack gap="3">
+              {renderStatusBadge("Open", openPullRequests.length)}
+              <Stack as="ul" gap="3" listStyleType="none" m="0" p="0">
+                {openPullRequests.map(renderSource)}
+              </Stack>
             </Stack>
-          </Stack>
 
-          <Separator orientation="vertical" />
+            <Separator orientation="vertical" />
 
-          <Stack gap="3">
-            {renderStatusBadge("Closed", closedPullRequests.length)}
-            <Stack as="ul" gap="3" listStyleType="none" m="0" p="0">
-              {closedPullRequests.map(renderSource)}
+            <Stack gap="3">
+              {renderStatusBadge("Closed", closedPullRequests.length)}
+              <Stack as="ul" gap="3" listStyleType="none" m="0" p="0">
+                {closedPullRequests.map(renderSource)}
+              </Stack>
             </Stack>
-          </Stack>
-        </Grid>
-      </Box>
+          </Grid>
+        </Box>
+      )}
 
-      <Box bg="white" borderWidth="1px" borderRadius="lg" borderColor="blue.subtle" p="5">
-        <Flex align="center" gap="2" mb="6">
-          <GitHubIcon />
-          <Heading size="md">Issues</Heading>
-        </Flex>
-        <Grid templateColumns="minmax(0, 1fr) auto minmax(0, 1fr)" gap="6">
-          <Stack gap="3">
-            {renderStatusBadge("Open", openIssues.length)}
-            <Stack as="ul" gap="3" listStyleType="none" m="0" p="0">
-              {openIssues.map(renderSource)}
+      {issueSources.length > 0 && (
+        <Box bg="white" borderWidth="1px" borderRadius="lg" borderColor="blue.subtle" p="5">
+          <Flex align="center" gap="2" mb="6">
+            <GitHubIcon />
+            <Heading size="md">Issues</Heading>
+          </Flex>
+          <Grid templateColumns="minmax(0, 1fr) auto minmax(0, 1fr)" gap="6">
+            <Stack gap="3">
+              {renderStatusBadge("Open", openIssues.length)}
+              <Stack as="ul" gap="3" listStyleType="none" m="0" p="0">
+                {openIssues.map(renderSource)}
+              </Stack>
             </Stack>
-          </Stack>
 
-          <Separator orientation="vertical" />
+            <Separator orientation="vertical" />
 
-          <Stack gap="3">
-            {renderStatusBadge("Closed", closedIssues.length)}
-            <Stack as="ul" gap="3" listStyleType="none" m="0" p="0">
-              {closedIssues.map(renderSource)}
+            <Stack gap="3">
+              {renderStatusBadge("Closed", closedIssues.length)}
+              <Stack as="ul" gap="3" listStyleType="none" m="0" p="0">
+                {closedIssues.map(renderSource)}
+              </Stack>
             </Stack>
-          </Stack>
-        </Grid>
-      </Box>
+          </Grid>
+        </Box>
+      )}
     </Stack>
   )
 }
@@ -635,7 +739,7 @@ export default function App() {
     useState<GoldenSetStatusResponse | null>(null)
   const [prFetchLimit, setPrFetchLimit] = useState(10)
   const [issueFetchLimit, setIssueFetchLimit] = useState(10)
-  const [repo, setRepo] = useState("mockoon/mockoon")
+  const [repo, setRepo] = useState("")
   const [plannedChange, setPlannedChange] = useState("")
   const [reportSections, setReportSections] = useState<ReportSection[]>(defaultSections)
   const [reportSources, setReportSources] = useState<ReportSource[]>(defaultSources)
@@ -874,6 +978,49 @@ export default function App() {
     }
   }
 
+  const openRagUpdateDrawer = async () => {
+    ragUpdateTimers.current.forEach((timer) => window.clearTimeout(timer))
+    ragUpdateTimers.current = []
+
+    setHasStartedRagUpdate(false)
+    setRagUpdateStage("idle")
+    setQualityGateResult(null)
+    setGithubIngestResult(null)
+
+    try {
+      const [n8nResponse, goldenSetResponse, ragStorageResponse] = await Promise.all([
+        fetch(`${API_BASE_URL}/n8n-setup`),
+        fetch(`${API_BASE_URL}/golden-set-status`),
+        fetch(`${API_BASE_URL}/rag-storage-status`),
+      ])
+
+      if (n8nResponse.ok) {
+        const payload = (await n8nResponse.json()) as N8nSetupResponse
+        setN8nSetupState(payload.imported ? "ready" : "missing")
+      } else {
+        setN8nSetupState("missing")
+      }
+
+      if (goldenSetResponse.ok) {
+        setGoldenSetStatus((await goldenSetResponse.json()) as GoldenSetStatusResponse)
+      } else {
+        setGoldenSetStatus(null)
+      }
+
+      if (ragStorageResponse.ok) {
+        setRagStorageStatus((await ragStorageResponse.json()) as RagStorageStatusResponse)
+      } else {
+        setRagStorageStatus(null)
+      }
+    } catch {
+      setN8nSetupState("missing")
+      setGoldenSetStatus(null)
+      setRagStorageStatus(null)
+    }
+
+    setIsRagUpdateOpen(true)
+  }
+
   return (
     <Grid
       minH="100vh"
@@ -1025,7 +1172,7 @@ export default function App() {
                 variant="outline"
                 width="fit-content"
                 justifyContent="flex-start"
-                onClick={() => setIsRagUpdateOpen(true)}
+                onClick={openRagUpdateDrawer}
               >
                 Load fresh data
               </Button>

@@ -12,6 +12,7 @@ from security.proxy import screen_query
 GITHUB_URL_PATTERN = re.compile(
     r"https://github\.com/[A-Za-z0-9_.-]+/[^\s)\]]+"
 )
+TOOL_CALL_PLACEHOLDER_PATTERN = re.compile(r"(?:\[TOOL_CALLS\]\s*)+", re.IGNORECASE)
 
 class RiskWorkflowState(TypedDict, total=False):
     repo: str
@@ -43,6 +44,19 @@ async def retrieval_and_generation(state: RiskWorkflowState) -> RiskWorkflowStat
                                         state["repo"],
                                         state["sanitized_user_description"],
                                     )
+
+    if TOOL_CALL_PLACEHOLDER_PATTERN.fullmatch(report.strip()):
+        report = (
+            "Summary:\n"
+            "The model returned a tool-call placeholder instead of a risk report. "
+            "Try generating the report again, or refresh the RAG data before retrying.\n\n"
+            "Historical Context:\n"
+            "- No usable historical context was returned.\n\n"
+            "Risk Areas:\n"
+            "- Unable to determine risk areas from the model response.\n\n"
+            "Review Checklist:\n"
+            "- Retry the report generation and verify the retrieved GitHub context."
+        )
 
     return {
         **state,

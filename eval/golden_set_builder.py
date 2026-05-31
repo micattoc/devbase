@@ -80,7 +80,7 @@ def generate_candidates(
     scored_records = [
         (score_record(record), record)
         for record in records
-        if record.get("url") and record.get("type") != "readme"
+        if record.get("url")
     ]
 
     scored_records.sort(key=lambda item: item[0], reverse=True)

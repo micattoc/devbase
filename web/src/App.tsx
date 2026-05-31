@@ -751,6 +751,7 @@ export default function App() {
   const [issueFetchLimit, setIssueFetchLimit] = useState(DEFAULT_FETCH_LIMIT)
   const [repo, setRepo] = useState("")
   const [ragUpdateRepo, setRagUpdateRepo] = useState("")
+  const [isRagUpdateRepoConfirmed, setIsRagUpdateRepoConfirmed] = useState(false)
   const [plannedChange, setPlannedChange] = useState("")
   const [reportSections, setReportSections] = useState<ReportSection[]>(defaultSections)
   const [reportSources, setReportSources] = useState<ReportSource[]>(defaultSources)
@@ -759,6 +760,7 @@ export default function App() {
   const isRagUpdateConfigured =
     goldenSetStatus?.established === true && n8nSetupState === "ready"
   const hasRagUpdateRepo = ragUpdateRepo.trim().length > 0
+  const canStartRagUpdate = hasRagUpdateRepo && isRagUpdateRepoConfirmed
 
   useEffect(() => {
     const loadN8nSetupStatus = async () => {
@@ -1004,6 +1006,7 @@ export default function App() {
     setQualityGateResult(null)
     setGithubIngestResult(null)
     setRagUpdateRepo(repo.trim())
+    setIsRagUpdateRepoConfirmed(false)
     setPrFetchLimit(DEFAULT_FETCH_LIMIT)
     setIssueFetchLimit(DEFAULT_FETCH_LIMIT)
 
@@ -1278,7 +1281,13 @@ export default function App() {
                         <InputGroup startAddon="github.com/">
                           <Input
                             value={ragUpdateRepo}
-                            onChange={(event) => setRagUpdateRepo(event.target.value)}
+                            onChange={(event) => {
+                              setRagUpdateRepo(event.target.value)
+                              setIsRagUpdateRepoConfirmed(false)
+                            }}
+                            onBlur={() =>
+                              setIsRagUpdateRepoConfirmed(ragUpdateRepo.trim().length > 0)
+                            }
                             fontSize="md"
                             bg="white"
                             borderColor="border.emphasized"
@@ -1293,13 +1302,13 @@ export default function App() {
                         <FetchLimitSlider
                           label="Pull requests"
                           value={prFetchLimit}
-                          disabled={!hasRagUpdateRepo}
+                          disabled={!canStartRagUpdate}
                           onValueChange={setPrFetchLimit}
                         />
                         <FetchLimitSlider
                           label="Issues"
                           value={issueFetchLimit}
-                          disabled={!hasRagUpdateRepo}
+                          disabled={!canStartRagUpdate}
                           onValueChange={setIssueFetchLimit}
                         />
 
@@ -1308,7 +1317,7 @@ export default function App() {
                           color="white"
                           width="fit-content"
                           mt="2"
-                          disabled={!hasRagUpdateRepo}
+                          disabled={!canStartRagUpdate}
                           onClick={handleStartRagUpdate}
                         >
                           Pull in data

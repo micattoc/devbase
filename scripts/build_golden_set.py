@@ -6,16 +6,18 @@ from eval.golden_set_builder import build_and_review_golden_set
 
 
 def prompt_int(label: str, default: int) -> int:
-    value = input(f"{label} [{default}]: ").strip()
+    value = input(f"{label} [max: {default}]: ").strip()
 
     return int(value) if value else default
 
 
 def main() -> None:
-    settings = load_settings(require_secrets=False)
-    default_repo = settings.github_repo_list[0]
+    load_settings(require_secrets=False)
 
-    repo = input(f"Repository owner/repo [{default_repo}]: ").strip() or default_repo
+    repo = input("Repository owner/repo: ").strip()
+    if not repo:
+        raise SystemExit("Repository is required, e.g. mockoon/mockoon.")
+
     issue_limit = prompt_int("Issues to fetch", 20)
     pr_limit = prompt_int("Pull requests to fetch", 20)
 

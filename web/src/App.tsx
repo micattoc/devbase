@@ -762,6 +762,27 @@ export default function App() {
   const hasRagUpdateRepo = ragUpdateRepo.trim().length > 0
   const canStartRagUpdate = hasRagUpdateRepo && isRagUpdateRepoConfirmed
 
+  const loadGoldenSetStatus = async (repoValue?: string) => {
+    const query = repoValue ? `?repo=${encodeURIComponent(repoValue)}` : ""
+    const response = await fetch(`${API_BASE_URL}/golden-set-status${query}`)
+
+    if (!response.ok) {
+      setGoldenSetStatus(null)
+      return
+    }
+
+    setGoldenSetStatus((await response.json()) as GoldenSetStatusResponse)
+  }
+
+  const confirmRagUpdateRepo = () => {
+    const trimmedRepo = ragUpdateRepo.trim()
+    setIsRagUpdateRepoConfirmed(trimmedRepo.length > 0)
+
+    if (trimmedRepo.length > 0) {
+      void loadGoldenSetStatus(trimmedRepo)
+    }
+  }
+
   useEffect(() => {
     const loadN8nSetupStatus = async () => {
       try {
@@ -802,22 +823,15 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    const loadGoldenSetStatus = async () => {
+    const loadInitialGoldenSetStatus = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/golden-set-status`)
-
-        if (!response.ok) {
-          setGoldenSetStatus(null)
-          return
-        }
-
-        setGoldenSetStatus((await response.json()) as GoldenSetStatusResponse)
+        await loadGoldenSetStatus()
       } catch {
         setGoldenSetStatus(null)
       }
     }
 
-    void loadGoldenSetStatus()
+    void loadInitialGoldenSetStatus()
   }, [])
 
   useEffect(() => {
@@ -829,7 +843,9 @@ export default function App() {
   const ragUpdatedSuffix =
     ragStorageStatus?.days_ago === 0
       ? "today"
-      : `${ragStorageStatus?.days_ago ?? 0} days ago`
+      : ragStorageStatus?.days_ago === 1
+        ? "1 day ago"
+        : `${ragStorageStatus?.days_ago ?? 0} days ago`
   const lastUpdatedText =
     ragStorageStatus?.exists && ragStorageStatus.display_date !== null
       ? `Last updated: ${ragStorageStatus.display_date} (${ragUpdatedSuffix})`
@@ -961,6 +977,9 @@ export default function App() {
       headers: {
         "Content-Type": "application/json",
       },
+      body: JSON.stringify({
+        repo: ragUpdateRepo.trim(),
+      }),
     })
 
     try {
@@ -1285,9 +1304,7 @@ export default function App() {
                               setRagUpdateRepo(event.target.value)
                               setIsRagUpdateRepoConfirmed(false)
                             }}
-                            onBlur={() =>
-                              setIsRagUpdateRepoConfirmed(ragUpdateRepo.trim().length > 0)
-                            }
+                            onBlur={confirmRagUpdateRepo}
                             fontSize="md"
                             bg="white"
                             borderColor="border.emphasized"

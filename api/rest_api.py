@@ -5,7 +5,7 @@ from typing import Any
 
 import httpx
 import requests
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -90,6 +90,10 @@ class QualityGateTriggerResponse(BaseModel):
     message: str
 
 
+class QualityGateTriggerRequest(BaseModel):
+    repo: str | None = None
+
+
 class N8nSetupResponse(BaseModel):
     imported: bool
     workflow_name: str | None = None
@@ -107,6 +111,10 @@ class GoldenSetStatusResponse(BaseModel):
     established: bool
     path: str
     case_count: int
+
+
+class RunEvalRequest(BaseModel):
+    repo: str | None = None
 
 
 def build_source_detail(url: str, source_index: dict[str, dict[str, str]]) -> SourceDetail:
@@ -207,8 +215,8 @@ async def rag_storage_status() -> RagStorageStatusResponse:
 
 # Check if a golden set is available for the eval to run
 @app.get("/golden-set-status", response_model=GoldenSetStatusResponse)
-async def golden_set_status() -> GoldenSetStatusResponse:
-    status = read_golden_set_status()
+async def golden_set_status(repo: str | None = Query(default=None)) -> GoldenSetStatusResponse:
+    status = read_golden_set_status(repo=repo)
 
     return GoldenSetStatusResponse(
         established=status.established,
@@ -276,9 +284,9 @@ async def change_risk(request: RiskRequest) -> RiskResponse:
 
 # Invoke eval on current golden set
 @app.post("/run-eval")
-async def run_eval_endpoint() -> dict[str, Any]:
+async def run_eval_endpoint(request: RunEvalRequest | None = None) -> dict[str, Any]:
     try:
-        return await run_eval()
+        return await run_eval(repo=request.repo if request else None)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -302,14 +310,19 @@ async def promote_staging() -> PromotionResponse:
 
 # Trigger the n8n quality gate workflow
 @app.post("/trigger-quality-gate", response_model=QualityGateTriggerResponse)
-async def trigger_quality_gate() -> QualityGateTriggerResponse:
+async def trigger_quality_gate(
+    request: QualityGateTriggerRequest | None = None,
+) -> QualityGateTriggerResponse:
     settings = load_settings(require_secrets=False)
 
     try:
         async with httpx.AsyncClient(timeout=300) as client:
             response = await client.post(
                 settings.n8n_quality_gate_webhook_url,
-                json={"source": "devbase-api"},
+                json={
+                    "source": "devbase-api",
+                    "repo": request.repo if request else None,
+                },
             )
         
         if response.status_code >= 400:

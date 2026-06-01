@@ -14,7 +14,10 @@ class GoldenSetStatus:
     case_count: int
 
 
-def read_golden_set_status(path: Path = GOLDEN_SET_PATH) -> GoldenSetStatus:
+def read_golden_set_status(
+    path: Path = GOLDEN_SET_PATH,
+    repo: str | None = None,
+) -> GoldenSetStatus:
     if not path.exists():
         return GoldenSetStatus(established=False, path=str(path), case_count=0)
 
@@ -25,8 +28,11 @@ def read_golden_set_status(path: Path = GOLDEN_SET_PATH) -> GoldenSetStatus:
             continue
 
         try:
-            json.loads(line)
+            case = json.loads(line)
         except json.JSONDecodeError:
+            continue
+
+        if repo and case.get("repo") != repo:
             continue
 
         case_count += 1

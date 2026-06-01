@@ -116,6 +116,33 @@ def save_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
             file.write(json.dumps(row) + "\n")
 
 
+def load_jsonl(path: Path) -> list[dict[str, Any]]:
+    """Load JSONL rows, returning an empty list when the file does not exist."""
+
+    if not path.exists():
+        return []
+
+    rows: list[dict[str, Any]] = []
+
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            rows.append(json.loads(line))
+
+    return rows
+
+
+def save_repo_cases(path: Path, repo: str, cases: list[dict[str, Any]]) -> None:
+    """Replace existing cases for a repo while preserving other repo cases."""
+
+    existing_cases = [
+        case
+        for case in load_jsonl(path)
+        if case.get("repo") != repo
+    ]
+
+    save_jsonl(path, [*existing_cases, *cases])
+
+
 def review_candidates(candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Prompt the developer to approve, reject, or edit generated cases."""
 
@@ -160,6 +187,7 @@ def build_and_review_golden_set(
     records: list[dict[str, Any]],
     output_path: Path = DEFAULT_GOLDEN_SET_PATH,
     max_candidates: int = 10,
+    repo: str | None = None,
 ) -> list[dict[str, Any]]:
     """Generate candidates, allow developer to review them interactively, and save approved cases."""
 
@@ -172,7 +200,11 @@ def build_and_review_golden_set(
     approved = review_candidates(candidates)
 
     if approved:
-        save_jsonl(output_path, approved)
+        if repo:
+            save_repo_cases(output_path, repo, approved)
+        else:
+            save_jsonl(output_path, approved)
+
         print(f"\nSaved {len(approved)} approved cases to {output_path}")
     else:
         print("\nNo cases approved. Golden set was not updated.")

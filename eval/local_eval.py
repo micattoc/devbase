@@ -17,7 +17,7 @@ GOLDEN_SET_PATH = Path("data/golden_test_set.jsonl")
 PASSING_CITATION_RATE = 0.80
 
 
-def load_golden_set(path: Path = GOLDEN_SET_PATH) -> list[dict[str, Any]]:
+def load_golden_set(path: Path = GOLDEN_SET_PATH, repo: str | None = None) -> list[dict[str, Any]]:
     """Load reviewed eval cases from JSONL."""
 
     if not path.exists():
@@ -31,7 +31,12 @@ def load_golden_set(path: Path = GOLDEN_SET_PATH) -> list[dict[str, Any]]:
         if not line.strip():
             continue
 
-        cases.append(json.loads(line))
+        case = json.loads(line)
+
+        if repo and case.get("repo") != repo:
+            continue
+
+        cases.append(case)
 
     return cases
 
@@ -43,10 +48,10 @@ def citation_hit(expected_urls: list[str], actual_urls: list[str]) -> bool:
     return any(url in actual for url in expected_urls)
 
 
-async def run_eval(path: Path = GOLDEN_SET_PATH) -> dict[str, Any]:
+async def run_eval(path: Path = GOLDEN_SET_PATH, repo: str | None = None) -> dict[str, Any]:
     """Run the golden set in LightRAG's workflow and return pass/fail metrics."""
 
-    cases = load_golden_set(path)
+    cases = load_golden_set(path, repo=repo)
 
     results: list[dict[str, Any]] = []
     hits = 0

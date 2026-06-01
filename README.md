@@ -4,6 +4,10 @@ Devbase helps developers review risks before making changes in code, by querying
 
 It uses eval gates in a workflow runner so that teams can continue to update and refer to repo data in the RAG - which holds the same quality over time.
 
+## Demo 
+#### Click following image to watch demonstration and setup instructions.
+[![Watch the demo!](https://github.com/user-attachments/assets/e8b9de1d-cdd8-41d2-bb6c-918537143747)](https://youtu.be/rkbrAXk-rWw)
+
 ## Tech Stack
 
 ### AI Orchestration:
@@ -27,12 +31,12 @@ It uses eval gates in a workflow runner so that teams can continue to update and
 ```mermaid
 flowchart TB
     User["Developer"]
-    CLI["Local setup CLI<br/>(golden set builder, n8n setup)"]
+    CLI["Local setup CLI<br/>(set builder, n8n setup)"]
     UI["Devbase UI"]
     API["Backend API<br/>(FastAPI, LangGraph)"]
     GitHub["Repo Data<br/>(GitHub issues + PRs)"]
     RAG["RAG Storage<br/>(LightRAG, Hugging Face, Presidio)"]
-    Gate["Quality Gate<br/>(n8n, golden set)"]
+    Gate["Quality Gate<br/>(n8n workflow)"]
 
     User --> UI
     UI --> API

@@ -10,7 +10,8 @@ scripts/*smoke_test.py
 scripts/*set.py
 n8n_data/
 storage/
-ingestion_manifest.json
+ingestion*
+golden*
 audit.jsonl
 
 node_modules/

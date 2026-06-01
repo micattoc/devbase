@@ -106,7 +106,7 @@
             {
               "id": "92a3447d-b8b1-41ec-98c8-bd9a312b5be7",
               "name": "message",
-              "value": "Eval gate failed. Staging was not promoted.",
+              "value": "Failed quality check against golden set. Modify prompt and model to ensure data is integrated in next run.",
               "type": "string"
             }
           ]
@@ -135,7 +135,7 @@
             {
               "id": "022cb96a-a214-402d-8413-964736d4bba1",
               "name": "message",
-              "value": "Eval gate passed. Staging promoted to live.",
+              "value": "Passed quality against golden set, so new data has been successfuly integrated.",
               "type": "string"
             }
           ]

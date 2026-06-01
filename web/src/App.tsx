@@ -44,7 +44,7 @@ import {
   HiOutlineTerminal,
 } from "react-icons/hi"
 
-const TITLE_WORD_LIMIT = 5
+const TITLE_WORD_LIMIT = 4
 type PreviewState = "idle" | "loading" | "report"
 type N8nSetupState = "missing" | "ready"
 type RagUpdateStage = "idle" | "fetching" | "evaluating" | "complete"

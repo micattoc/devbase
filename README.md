@@ -2,7 +2,7 @@
 
 Devbase helps developers review risks before making changes in code, by querying repo history from GitHub issues and pull requests in a <ins>RAG system</ins>.
 
-It uses <ins>eval gates</ins> in a workflow runner so that teams can continue to update and refer to data in the RAG - which holds the same quality over time.
+It uses <ins>eval gates</ins> in a workflow runner so that teams can continue to update and refer to repo data in the continuously reliable RAG.
 
 #### Built using:
 [![LangGraph](https://img.shields.io/badge/-Lang--Graph-88c7fd?style=for-the-badge)](https://www.langchain.com/langgraph)

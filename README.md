@@ -68,6 +68,30 @@ flowchart TB
 
 # Setup Instructions
 
+## Configure Environment
+
+Create your local `.env` file from the template:
+
+```cmd
+copy .env.example .env
+```
+
+### Required
+
+- `HF_TOKEN`: required for LightRAG to call Hugging Face LLM and embedding models.
+
+### Optional
+- `GITHUB_TOKEN`: needed for private repos or higher GitHub API rate limits
+- `BRAINTRUST_API_KEY`: enables eval logging/monitoring
+
+### Modifiable
+
+- `HF_LLM_MODEL`: Hugging Face chat model used for report generation
+- `HF_EMBEDDING_MODEL`: Hugging Face embedding model used by LightRAG
+- `HF_PROVIDER`: Hugging Face inference provider. Keep `auto` unless you need a specific provider
+
+<br>
+
 ## Build Golden Set
 Golden set cases are repo-scoped. The file: `golden_test_set.jsonl` contains cases for each repo that has been fetched using Devbase. 
 

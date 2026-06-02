@@ -76,6 +76,10 @@
       "parameters": {
         "method": "POST",
         "url": "http://host.docker.internal:8000/run-eval",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"repo\": {{ JSON.stringify($json.body.repo) }}\n}",
         "options": {
           "response": {
             "response": {

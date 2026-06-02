@@ -169,8 +169,28 @@ cd web
 npm run dev
 ```
 
-- Open the UI at:
+### Open on browser
 
 ```text
 http://localhost:5173
 ```
+
+---
+<div align="center">
+    <img height="35" src="https://github.com/user-attachments/assets/f34c054d-998b-4b5d-a047-6dbdb0bd6247"
+</div>
+
+<p align="center">
+    Developed by
+</p>
+
+<div align="center"> 
+
+[![Author](https://img.shields.io/badge/-Sophia--Halapchuk-9ae0d0?style=flat-square)](https://www.linkedin.com/in/sophia-halapchuk)
+[![Author](https://img.shields.io/badge/-@micattoc-eebc81?style=flat-square)](https://github.com/micattoc)
+
+</div>
+
+
+
+

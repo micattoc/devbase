@@ -1,30 +1,39 @@
-# Devbase
+# <img height="35" src="https://github.com/user-attachments/assets/f34c054d-998b-4b5d-a047-6dbdb0bd6247" /> Devbase 
 
-Devbase helps developers review risks before making changes in code, by querying repo history from GitHub issues and pull requests in a RAG system.
+Devbase helps developers review risks before making changes in code, by querying repo history from GitHub issues and pull requests in a <ins>RAG system</ins>.
 
-It uses eval gates in a workflow runner so that teams can continue to update and refer to repo data in the RAG - which holds the same quality over time.
+It uses <ins>eval gates</ins> in a workflow runner so that teams can continue to update and refer to data in the RAG - which holds the same quality over time.
+
+#### Built using:
+[![LangGraph](https://img.shields.io/badge/-Lang--Graph-88c7fd?style=for-the-badge)](https://www.langchain.com/langgraph)
+[![Hugging Face](https://img.shields.io/badge/-Hugging--Face-fbd33a?style=for-the-badge)](https://huggingface.co/docs)
+[![n8n](https://img.shields.io/badge/-n8n-e34c74?style=for-the-badge)](https://docs.n8n.io)
+[![LightRAG](https://img.shields.io/badge/-LightRAG-89e051?style=for-the-badge)](https://github.com/hkuds/lightrag)
+[![Presidio](https://img.shields.io/badge/-Presidio-ea5330?style=for-the-badge)](https://github.com/microsoft/presidio)
+[![FastAPI](https://img.shields.io/badge/-Fast--API-2f988a?style=for-the-badge)](https://fastapi.tiangolo.com)
+[![React](https://img.shields.io/badge/-React-8acff3?style=for-the-badge)](https://react.dev)
+[![Docker](https://img.shields.io/badge/-Docker-375efb?style=for-the-badge)](https://www.docker.com)
+
+<br><br>
 
 ## Demo 
-#### Click following image to watch demonstration and setup instructions.
-[![Watch the demo!](https://github.com/user-attachments/assets/e8b9de1d-cdd8-41d2-bb6c-918537143747)](https://youtu.be/rkbrAXk-rWw)
+#### 🡳 Click image to watch demonstration + instructions for setup
+<br>
+<kbd>
+    <a href="https://youtu.be/rkbrAXk-rWw"> 
+        <img src="https://github.com/user-attachments/assets/e8b9de1d-cdd8-41d2-bb6c-918537143747" alt="Description" width="1000">
+    </a>
+</kbd>
+
+<br><br>
 
 ## Tech Stack
 
-### AI Orchestration:
-- **LightRAG**: graph-based RAG storage and retrieval
-- **Hugging Face**: LLM and embedding models for LightRAG
-- **LangGraph**: risk-review workflow orchestration
-- **Presidio**: prompt-injection screening and blocking requests
+| AI Orchestration      | API & Web         | Eval & Monitoring  |
+| --------- |-------------| ------------- |
+| <ul><li>**LangGraph** -> workflow orchestration</li><li>**Hugging Face** -> LLM and embedding models</li><li>**LightRAG** -> RAG storage/retrieval</li><li>**Presidio** -> prompt-injection screening</li></ul> | <ul><li>**Python** -> FastAPI REST</li><li>**React** -> Vite, Chakra UI</li><li>**Docker** ->runs n8n container</li></ul> | <ul><li>**n8n** -> eval workflow </li><li>**Braintrust** -> observability</li></ul>
 
-### AI Eval:
-- **n8n**: quality-gate workflow runner
-- **Braintrust**: eval observability for regression tracking
-
-### Full Stack:
-- **Python**: FastAPI REST, GitHub REST, scripts [backend]
-- **React**: Vite and Chakra UI [frontend]
-- **Docker**: runs n8n via container
-
+<br>
 
 ## Architecture
 
@@ -57,11 +66,24 @@ flowchart TB
     linkStyle 7,8,9,10 stroke:#16a34a,stroke-width:3px
 ```
 
+# Setup Instructions
+
 ## Build Golden Set
+Golden set cases are repo-scoped. The file: `golden_test_set.jsonl` contains cases for each repo that has been fetched using Devbase. 
 
-Golden set cases are repo-scoped. One file can contain cases for multiple repos, but eval only uses cases for the repo being updated.
+- The eval process only uses cases for the repo being updated.
+- Rebuilding for the same repo replaces that repo's cases and keeps cases for other repos.
 
-Run the builder:
+<br>
+
+> [!NOTE]
+> A specific repo's <ins>golden set</ins> contains data pairs, each consisting of:
+> 1. example case of your proposed code change
+> 2. the sources that the RAG should cite
+
+<br>
+
+### Run the builder:
 
 ```cmd
 python -m scripts.build_golden_set
@@ -69,83 +91,85 @@ python -m scripts.build_golden_set
 
 The CLI asks for:
 
-- `Repository owner/repo`: target repo, for example `mockoon/mockoon`
-- `Issues to fetch`: issue records to inspect
-- `Pull requests to fetch`: PR records to inspect
+- `Repository owner/repo`: target repo, for example `micattoc/devbase`
+- `Issues to fetch`: number of issue records
+- `Pull requests to fetch`: number of PR records
 
-For each generated candidate:
+<br>
+
+For each generated candidate (records that have a `score` of `3+`):
 
 - `y`: approve case
 - `n`: reject case
 - `e`: edit prompt before saving
 - `q`: stop review
 
-Candidate `score` is a heuristic:
+<br>
 
-- `+1` when title/body contains high-signal words like `bug`, `regression`, `breaking`, `compatibility`, `fix`, `route`, `request`, or `body`
-- `+2` when labels contain those high-signal words
-- `+1` when the record is an issue or pull request
-- `+3` when the text links to another GitHub record with `fixes`, `closes`, or `resolves #...`
-- `+1` when the record has a URL
+> [!NOTE]
+> Candidate `score` is a heuristic (calculated when record is fetched):
+> - `+1` when title/body contains high-signal words like `bug`, `regression`, `breaking`, `compatibility`, `fix`, `route`, `request`, or `body`
+> - `+2` when labels contain those high-signal words
+> - `+1` when the record is an issue or pull request
+> - `+3` when the text links to another GitHub record with `fixes`, `closes`, or `resolves #...`
+> - `+1` when the record has a URL
+> 
+> Higher score means the record is more likely to become a useful eval case.
+> 
+> The CLI shows up to 10 candidates, ranked by score, after dropping records below the minimum score threshold of `3`.
 
-Higher score means the record is more likely to become a useful eval case.
-The CLI shows up to 10 candidates, ranked by score, after dropping records below the minimum score threshold.
-
-Approved cases are saved to:
-
-```text
-data/golden_test_set.jsonl
-```
-
-Rebuilding for the same repo replaces that repo's cases and keeps cases for other repos.
+<br>
 
 ## Setup n8n Workflow
 
-n8n runs the eval gate: run golden-set eval, promote staging RAG data only if eval passes, then return the result to Devbase.
+n8n runs the eval process: golden set evalution, promote staging RAG data only if eval passes, then return the result to Devbase.
 
-Prerequisites:
+> [!IMPORTANT]
+> Prerequisites:
+> - Docker is running
+> - Golden set exists for the repo you want to update
+> - FastAPI is available at `http://host.docker.internal:8000` when the workflow runs
+> - Registered an account in n8n
 
-- Docker Desktop is running
-- Golden set exists for the repo you want to update
-- FastAPI will be available at `http://host.docker.internal:8000` when the workflow runs
+<br>
 
-Run setup from the project root:
+### Run setup from the project root:
 
 ```cmd
 bash scripts/setup_n8n.sh
 ```
 
-The script will:
-
-- start the `devbase_n8n` Docker container
-- import `workflows/n8n_quality_gate.json`
-- publish the workflow webhook
-- write setup status to `.devbase/n8n_setup.json`
-
-Production webhook:
-
+The script will start `devbase_n8n` Docker container with an imported `n8n` workflow that is automatically published as a production webhook at:
 ```text
 http://localhost:5678/webhook/kb-updated
 ```
 
-Devbase uses this by default through `N8N_QUALITY_GATE_WEBHOOK_URL`.
+You can view and modify the `n8n` workflow executions + stages at:
+```text
+http://localhost:5678
+```
 
-## Run Locally
 
-Run FastAPI from the project root:
+<br>
 
+## Run Devbase
+
+### Run backend
+
+From the project root:
 ```cmd
 uvicorn api.rest_api:app --reload --port 8000
 ```
 
-Run the UI in a second terminal:
+### Run the UI
 
+In a second terminal:
 ```cmd
 cd web
 npm run dev
 ```
 
-Open the UI at:
+- Open the UI at:
 
 ```text
 http://localhost:5173

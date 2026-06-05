@@ -92,6 +92,16 @@ copy .env.example .env
 
 <br>
 
+## Install Dependencies
+
+From the project root, install dependencies:
+
+```cmd
+pip install -r requirements.txt
+```
+
+<br>
+
 ## Build Golden Set
 Golden set cases are repo-scoped. The file: `golden_test_set.jsonl` contains cases for each repo that has been fetched using Devbase. 
 
